@@ -1,0 +1,115 @@
+name,region,fric_n,lat_span,year_span,alt_span,n_lat,n_onset,n_term,n_flightcurve0s,curated_n_obs,curated_n_lat,curated_n_fcurve,curated_lat_span,curated_year_span,curated_alt_span
+Agriades glandon,N. America,113,34,103,4042,26,27,27,9,NA,NA,NA,NA,NA,NA
+Agriades optilete,Europe,86,25,111,2940,15,15,15,5,NA,NA,NA,NA,NA,NA
+Amblyscirtes vialis,N. America,97,29,133,2775,21,22,21,9,NA,NA,NA,NA,NA,NA
+Anthocharis cardamines,Europe,31849,32,168,2595,33,39,35,2,29152,17,393,16,80,499
+Anthocharis sara,N. America,229,28,111,4417,21,22,22,6,NA,NA,NA,NA,NA,NA
+Aphantopus hyperantus,Europe,30598,25,399,2102,26,27,28,1,27887,15,330,14,79,488
+Aporia crataegi,Europe,5172,64,165,2520,33,34,35,2,4055,10,108,13,74,268
+Argynnis aglaja,Europe,9115,31,142,2590,32,33,34,1,6456,15,227,15,75,499
+Argynnis niobe,Europe,1980,26,164,2662,24,28,26,0,511,6,31,10,74,374
+Argynnis paphia,Europe,7918,29,146,2635,30,31,35,1,6096,11,183,14,100,374
+Aricia artaxerxes,Europe,1067,32,168,2653,26,28,26,1,361,3,23,4,48,493
+Boloria alaskensis,N. America,31,15,64,2113,5,5,5,1,NA,NA,NA,NA,NA,NA
+Boloria aquilonaris,Europe,2375,24,138,2154,21,23,22,1,553,12,39,15,74,471
+Boloria astarte,N. America,27,19,97,1678,9,9,10,5,NA,NA,NA,NA,NA,NA
+Boloria bellona,N. America,250,33,103,2865,18,18,21,4,36,2,3,1,29,329
+Boloria chariclea,N. America,161,32,139,4356,25,27,26,5,NA,NA,NA,NA,NA,NA
+Boloria epithore,N. America,40,19,96,1912,13,14,14,4,NA,NA,NA,NA,NA,NA
+Boloria eunomia,Europe,1199,27,138,2295,15,16,16,2,439,6,26,8,24,248
+Boloria eunomia,N. America,99,29,96,3498,17,19,18,2,NA,NA,NA,NA,NA,NA
+Boloria euphrosyne,Europe,7113,32,167,3256,32,35,32,3,4684,17,179,18,97,499
+Boloria freija,N. America,97,29,96,3539,16,17,17,0,NA,NA,NA,NA,NA,NA
+Boloria frigga,N. America,55,29,101,3495,12,15,12,2,NA,NA,NA,NA,NA,NA
+Boloria improba,N. America,66,32,82,4194,12,12,12,5,21,1,2,0,1,0
+Boloria napaea,Europe,477,29,166,2920,17,19,17,2,NA,NA,NA,NA,NA,NA
+Boloria selene,Europe,12901,30,165,2582,30,34,32,1,9979,17,295,18,81,499
+Boloria selene,N. America,195,26,138,3501,18,19,18,4,NA,NA,NA,NA,NA,NA
+Boloria thore,Europe,318,24,133,1949,10,10,11,1,NA,NA,NA,NA,NA,NA
+Brenthis ino,Europe,6777,27,109,2819,25,27,31,2,5553,9,128,11,76,355
+Callophrys augustinus,N. America,209,27,130,2967,24,25,25,4,NA,NA,NA,NA,NA,NA
+Callophrys eryphon,N. America,50,23,91,2756,16,18,16,6,NA,NA,NA,NA,NA,NA
+Callophrys niphon,N. America,165,26,136,2047,14,16,14,3,35,2,3,3,8,400
+Callophrys polios,N. America,99,20,135,2780,14,14,16,2,NA,NA,NA,NA,NA,NA
+Callophrys rubi,Europe,13204,35,169,2470,32,33,34,2,10890,17,291,17,123,496
+Carterocephalus palaemon,Europe,800,26,125,1530,24,31,26,2,150,4,7,9,15,424
+Carterocephalus palaemon,N. America,120,29,105,4295,22,23,22,5,NA,NA,NA,NA,NA,NA
+Celastrina ladon,N. America,415,30,138,1485,21,24,21,6,89,3,7,4,67,379
+Coenonympha glycerion,Europe,2113,25,115,3875,17,19,18,0,1653,3,41,2,22,148
+Coenonympha tullia,Europe,3113,22,141,1137,22,25,25,2,1281,10,83,11,74,499
+Coenonympha tullia,N. America,607,38,130,3506,32,34,35,7,300,3,10,4,11,458
+Colias canadensis,N. America,22,16,84,1683,6,6,6,2,NA,NA,NA,NA,NA,NA
+Colias christina,N. America,100,18,121,2303,12,15,13,2,NA,NA,NA,NA,NA,NA
+Colias gigantea,N. America,73,17,95,1905,12,13,12,4,NA,NA,NA,NA,NA,NA
+Colias interior,N. America,86,22,93,2079,16,17,17,3,NA,NA,NA,NA,NA,NA
+Colias nastes,N. America,62,19,107,2354,12,12,13,3,NA,NA,NA,NA,NA,NA
+Colias palaeno,Europe,2836,26,139,2737,23,25,28,2,1695,11,71,14,74,475
+Colias palaeno,N. America,43,10,82,1475,11,12,11,4,NA,NA,NA,NA,NA,NA
+Colias pelidne,N. America,15,25,96,2979,5,5,5,3,NA,NA,NA,NA,NA,NA
+Cupido amyntula,N. America,126,36,100,3963,24,25,26,5,13,1,1,0,0,0
+Cyaniris semiargus,Europe,217,16,168,1368,14,17,15,4,NA,NA,NA,NA,NA,NA
+Erebia discoidalis,N. America,61,18,99,1614,13,13,13,5,NA,NA,NA,NA,NA,NA
+Erebia epipsodea,N. America,122,28,111,4171,21,21,21,8,NA,NA,NA,NA,NA,NA
+Erebia ligea,Europe,4602,29,117,5163,27,30,29,5,3801,7,90,7,31,413
+Erebia mancinus,N. America,26,16,86,1350,9,9,10,4,NA,NA,NA,NA,NA,NA
+Erebia pandrose,Europe,861,29,114,3648,17,19,20,3,12,1,1,0,0,366
+Erynnis icelus,N. America,205,25,146,2911,18,18,20,5,10,1,1,0,0,147
+Erynnis persius,N. America,51,28,137,2508,15,15,16,5,NA,NA,NA,NA,NA,NA
+Erynnis tages,Europe,4081,23,137,1670,23,24,23,0,2278,8,95,7,73,421
+Euchloe ausonides,N. America,129,31,101,3662,21,23,22,5,NA,NA,NA,NA,NA,NA
+Euchloe creusa,N. America,40,18,91,2446,9,11,10,3,NA,NA,NA,NA,NA,NA
+Eumedonia eumedon,Europe,125,11,168,1578,9,10,10,0,NA,NA,NA,NA,NA,NA
+Euphydryas aurinia,Europe,6546,25,133,3187,23,24,27,3,5347,7,116,6,45,431
+Euphydryas chalcedona,N. America,117,30,120,4298,15,15,15,5,NA,NA,NA,NA,NA,NA
+Euphydryas maturna,Europe,1203,17,116,1550,10,11,10,3,715,3,33,2,26,227
+Fabriciana adippe,Europe,5924,26,145,2225,27,28,30,2,4178,12,139,12,74,494
+Glaucopsyche alexis,Europe,814,26,129,1826,20,25,23,1,320,3,16,2,14,333
+Glaucopsyche lygdamus,N. America,263,36,106,3681,30,33,33,5,37,2,2,9,53,201
+Hesperia comma,Europe,1122,30,144,2978,27,29,27,3,48,1,3,0,20,96
+Hesperia comma,N. America,143,34,102,3543,22,22,25,3,NA,NA,NA,NA,NA,NA
+Incisalia augustinus,N. America,4,15,4,945,2,2,2,0,NA,NA,NA,NA,NA,NA
+Lasiommata maera,Europe,275,31,117,2884,27,31,27,3,12,1,1,0,0,230
+Lasiommata petropolitana,Europe,192,27,167,1796,18,22,21,3,NA,NA,NA,NA,NA,NA
+Lethe eurydice,N. America,72,10,136,530,9,9,9,0,NA,NA,NA,NA,NA,NA
+Limenitis archippus,N. America,533,33,123,2529,26,28,27,2,153,4,8,15,41,414
+Limenitis arthemis,N. America,744,40,144,2370,34,37,36,5,200,3,13,4,58,418
+Limenitis populi,Europe,2028,24,129,686,20,20,21,4,1553,6,56,5,24,235
+Lopinga achine,Europe,22,15,66,1753,5,5,5,2,NA,NA,NA,NA,NA,NA
+Lycaeides idas,N. America,19,5,85,1197,6,6,6,2,NA,NA,NA,NA,NA,NA
+Lycaena dorcas,N. America,50,27,95,2853,12,13,13,4,NA,NA,NA,NA,NA,NA
+Lycaena hippothoe,Europe,4459,29,137,3308,28,28,29,1,2625,7,121,8,74,463
+Lycaena mariposa,N. America,41,19,113,2980,12,12,12,3,NA,NA,NA,NA,NA,NA
+Lycaena phlaeas,N. America,414,26,142,2483,17,17,17,7,245,2,9,1,4,441
+Lycaena virgaureae,Europe,8831,31,164,2736,29,29,32,4,7080,11,195,11,98,495
+Maculinea arion,Europe,755,17,111,2000,8,9,11,1,23,1,2,0,8,92
+Maniola jurtina,Europe,51819,28,164,2636,29,30,32,2,47679,10,303,9,123,499
+Melitaea athalia,Europe,4232,32,174,2624,30,37,30,2,2683,6,96,7,76,464
+Melitaea diamina,Europe,726,20,138,2919,17,17,18,2,132,2,11,1,35,82
+Ochlodes sylvanus,Europe,15195,30,165,1929,29,30,32,4,13860,14,236,14,38,499
+Oeneis bore,N. America,53,30,102,3688,14,16,15,3,NA,NA,NA,NA,NA,NA
+Oeneis chryxus,N. America,105,27,108,4059,19,20,20,5,NA,NA,NA,NA,NA,NA
+Oeneis jutta,N. America,82,24,119,2933,14,15,16,5,NA,NA,NA,NA,NA,NA
+Oeneis macounii,N. America,28,14,107,1858,7,7,7,4,NA,NA,NA,NA,NA,NA
+Oeneis melissa,N. America,102,27,94,3855,17,20,18,2,15,1,1,0,0,0
+Oeneis polixenes,N. America,52,28,94,3551,12,15,14,2,NA,NA,NA,NA,NA,NA
+Oeneis uhleri,N. America,61,33,108,3528,15,15,15,6,NA,NA,NA,NA,NA,NA
+Papilio canadensis,N. America,128,30,97,2916,22,22,23,7,17,1,1,0,0,7
+Papilio machaon,N. America,84,34,122,2179,24,25,25,9,NA,NA,NA,NA,NA,NA
+Parnassius apollo,Europe,555,26,136,2741,20,22,22,4,172,1,10,0,22,464
+Parnassius mnemosyne,Europe,392,25,116,2915,15,16,18,3,30,1,2,0,6,27
+Parnassius smintheus,N. America,140,27,107,4038,22,24,23,7,NA,NA,NA,NA,NA,NA
+Phengaris arion,Europe,61,14,52,3203,10,10,11,2,NA,NA,NA,NA,NA,NA
+Phyciodes campestris,N. America,42,18,115,1757,10,12,11,2,NA,NA,NA,NA,NA,NA
+Phyciodes tharos,N. America,136,13,102,2192,9,15,13,0,57,1,1,0,0,344
+Pieris marginalis,N. America,226,40,103,3620,31,35,33,7,NA,NA,NA,NA,NA,NA
+Plebejus idas,N. America,32,31,99,2605,18,19,19,9,NA,NA,NA,NA,NA,NA
+Plebejus saepiolus,N. America,170,25,104,3795,21,21,21,5,17,1,1,0,0,0
+Pyrgus alveus,Europe,594,24,182,2741,17,19,20,2,136,3,9,2,24,146
+Pyrgus andromedae,Europe,260,27,136,3193,11,13,11,5,NA,NA,NA,NA,NA,NA
+Pyrgus centaureae,N. America,47,27,99,3652,11,11,12,4,NA,NA,NA,NA,NA,NA
+Pyrgus malvae,Europe,5449,27,343,1556,25,28,26,1,3214,10,156,12,79,385
+Scolitantides orion,Europe,198,25,136,1566,15,15,15,5,29,1,2,0,2,59
+Speyeria hesperis,N. America,148,24,103,3366,20,21,21,5,NA,NA,NA,NA,NA,NA
+Speyeria mormonia,N. America,164,27,114,4048,17,19,18,3,NA,NA,NA,NA,NA,NA
+Thorybes pylades,N. America,229,33,139,2637,27,30,28,4,24,2,2,1,2,276
+Thymelicus lineola,Europe,11179,29,143,2233,29,33,30,3,9109,12,192,14,77,443
