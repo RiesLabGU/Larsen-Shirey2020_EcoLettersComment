@@ -561,3 +561,93 @@ p6<-term.st+labs(tag="F")
 #ggsave(pdf_filename, arrangeGrob(tfig2, nrow=1), width=10, height=5, scale=1.5, dpi=600,units="in")
 
 ```
+
+ 
+## Create results table (Supplemental Table 1)
+ 
+```{r}
+
+
+
+```
+
+
+## Create supplemental figure 2
+## This code chunk still needs to be cleaned up so variable names etc. match the above
+
+```{r}
+
+#################### SUPPLEMENTAL FIGURE 2 
+
+
+## PLOT PARAMETERS 
+m0 <- 0.5 #plot margins
+negslope <- "blue"
+posslope <- "darkgreen"
+flatslope <- "black"
+singles <- "red"
+
+#Filter data to reanalyzed datasets and use Fric et al. method of defining Onset & Termination
+#Keep all data but label records used as onset and offset
+fric.data<-occur %>%
+  filter(paste(name, region,sep="-")%in%datasets$set) %>%
+  group_by(name,region, rndLat) %>%
+  mutate(onset=min(SuccDay), term=max(SuccDay)) %>%
+  add_tally() %>%
+  mutate(Group=ifelse(n==1,1,0)) #, onsetobs=ifelse(onset==SuccDay,1,0), termobs=ifelse(term==SuccDay,1,0)) 
+
+#################### SUPPLEMENTAL FIGURE 2 COL 1: Fric analysis: DOY ~ latitude 
+sup1a<-list()
+for(rowi in 1:nrow(datasets)) {
+    #Filter Fric data
+    speciesdata<-  filter(fric.data, name==datsets$name[rowi], name==datsets$name[rowi])
+    onsetdata<-  filter(speciesdata, onset==SuccDay)
+    termdata<-  filter(speciesdata, term==SuccDay)
+    fric.onset.lm<-lm(onset~rndLat, data=onsetdata)
+    fric.term.lm<-lm(term~rndLat, data=termdata)
+    fric.onset.coef<-summary(fric.onset.lm)$coefficients
+    fric.term.coef<-summary(fric.term.lm)$coefficients
+    
+    #set parameters based on LM results 
+    onsetline<-ifelse(fric.onset.coef[2,4]<0.05,"dashed","dotted")
+    onsetcolor<-ifelse(fric.onset.coef[2,4]<0.05,ifelse(fric.onset.coef[2,1]>0,posslope,negslope),flatslope)
+
+    termline<-ifelse(fric.term.coef[2,4]<0.05,"dashed","dotted")
+    termcolor<-ifelse(fric.term.coef[2,4]<0.05,ifelse(fric.term.coef[2,1]>0,posslope,negslope),flatslope)
+
+    # For 2 species, our LM here does not produce results consistent with Fric et al. so we manually change the line parameters. there is probably ba more elegant way we could incorporate this into code by comparing lm results to fric results table
+    if(rowi==16) {onsetcolor <- negslope; onsetline <- "dashed"}
+    if(rowi==20) {termcolor <- posslope; termline <- "dashed"}
+    
+    mytitle<-paste(datasets$set[rowi])
+    #set xmin to 35, unless there are data south of that latitude
+    xmin<-ifelse(min(speciesdata$rndLat)<35,min(speciesdata$rndLat),35)
+    #Set top and bottom margins for odd (top of page) and even (bottom of page) rows
+    t1<-ifelse((rowi %% 2) == 0,0.5,2.8)
+    b1<-ifelse((rowi %% 2) == 0,2.8,0.5)
+    #Create plot
+    sup1a[[i]] <- ggplot(speciesdata, aes(x=rndLat, y=SuccDay, color=as.factor(Group))) +
+      geom_point(aes(color=as.factor(Group)), shape=3) +
+      geom_point(onsetdata, aes(x=rndLat, y=SuccDay, color=as.factor(Group))) + 
+      geom_point(termdata, aes(x=rndLat, y=SuccDay, color=as.factor(Group))) + 
+      geom_segment(data=filter(speciesdata, onset==SuccDay | term==SuccDay), aes(x=rndLat, y=onset, xend=rndLat, yend=term)) + 
+      geom_smooth(data=onsetdata, formula = str(fric.onset.lm$call),  method="lm", linetype=onsetline, color=onsetcolor, fill=onsetcolor) + 
+      geom_smooth(data=termdata, formula = str(fric.term.lm$call), method="lm", linetype=termline, color=termcolor, fill=termcolor) + 
+      scale_color_manual(values=c("black","red")) +
+      xlim(xmin,max(speciesdata$rndLat)) + ylim(min(speciesdata$SuccDay),max(speciesdata$SuccDay)) +
+      theme_light() +   theme(legend.position="none") + 
+      theme(plot.title = element_text(size=11,face = "italic"), axis.title=element_text(size=10), plot.margin = margin(t1, m0, b1, 2, "cm")) +
+      labs(x="Latitudinal Band", y="Day of Year (DOY)", title=mytitle)
+    
+}
+#pdf("testSuppFig1a.pdf", dpi=600)
+sup1a
+#dev.off()
+
+
+```
+Still needed: 
+Code to create columns 2 and 3 of supplemental figure 1.
+Code to create supplemental table 2.
+
+This is the end of this analysis. 
