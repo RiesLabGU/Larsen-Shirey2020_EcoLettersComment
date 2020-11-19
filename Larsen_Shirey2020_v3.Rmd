@@ -1,21 +1,26 @@
 ---
 title: "Fric et al. Re-analysis Code"
 author: "Vaughn Shirey & Elise Larsen"
-date: "Current version 11/16/2020; initiated 3/9/2020"
+date: "Current version 11/18/2020; initiated 3/9/2020"
 output: html_document
 ---
-
-## If phest is not already installed, see line 18 & run as code
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+```
+Begin Analysis
+
+Set up workspace 
+Load necessary packages
+If phest is not already installed, remove comment from install line
+
+```{r}
 
 # load libraries
 library(tidyverse)
 library(ggplot2)
 library(ggExtra)
 library(gridExtra)
-library(devtools)
-#install_github("willpearse/phest")
+#library(devtools); install_github("willpearse/phest")
 library(phest)
 library(readxl)
 
@@ -23,9 +28,12 @@ library(readxl)
 rm(list=ls())
 ```
 
+#### Data Import and Formatting
+data.csv file was downloaded from <a href="https://doi.org/10.6084/m9.figshare.9946934">https://doi.org/10.6084/m9.figshare.9946934</a>
+(https://figshare.com/articles/Phenology_responses_of_temperate_butterflies_-_Supplementary_data/9946934)
 
-##### Data Formatting
-Datasets are not formatted as a single data table; individual datasets were all written into one data file, including headers and row indices in each dataset. This first set of code reformats the data & writes formatted data files. 
+This cvs file contains the occurrence data used in Fric et al. (2020), which they downloaded from gbif. The file includes separate data tables for each dataset, which have been concatenated into one file. These data tables have the same fields but are not formatted as a single data table; individual datasets were all written into one data file, including headers and row indices in each dataset. This first set of code reformats the data & writes formatted data files. 
+
 
 ```{r}
 all.data <- readLines("fric_supplements/data.csv")
@@ -73,11 +81,27 @@ data1<-read_csv("data/fric_data_header_1.txt")
 data2<-read_csv("data/fric_data_header_2.txt")
 paste( nrow(data1), "records in format 1;", nrow(data2), "records in format 2")
 
-occur<-rbind(data1,data2)
+occur1<-rbind(data1,data2)
 rm(data1,data2)
 
-#Fric et al stated filters
-occur<-filter(occur, day!=1, name!="Euphydryas aurinia")
+##Fric et al includes different species names in results tables than found in data table. Manual corrections to match results tables:
+name_changes<-read_csv("data/name_changes.csv")
+table(occur1$name[which(occur1$name %in% name_changes$data_name)])
+
+for(namei in 1:nrow(name_changes)) {
+  occur1$name[occur1$name==name_changes$data_name[namei]]<-name_changes$results_name[namei]
+}
+
+rm(name_changes)
+## visualize data density by longitude
+hist(occur1$decimalLongitude, main="Data density by Longitude") 
+#ID records by region. Everything East of -40 is Europe, the rest is N. America 
+occur1<-occur1 %>% 
+  #Assign region by longitude.
+  mutate(region=ifelse(decimalLongitude>=(-40),"Europe","N. America"))
+
+#Fric et al removed all 1st of month observations and removed one species due to late season nests
+occur<-filter(occur1, day!=1, name!="Euphydryas aurinia")
 
 summary(occur)
 tempoccurplot<-occur %>% group_by(name) %>% tally()
@@ -86,28 +110,12 @@ hist(tempoccurplot$n[tempoccurplot$n<5000],xlab="# observations/species up to 50
 rm(tempoccurplot)
 ```
 #### Data exploration: 
-Data have now been formatted correctly and are stored in "occur"
-Fric et al. (2020) analysis was done by region (North America vs. Europe) but data are not identified by region.
+Data have now been formatted and stored into the "occur" tibble.
+The Fric et al. (2020) analysis was done by region (North America vs. Europe) but data are not identified by region.
 The following code chunk assigns regions and summarizes data used in Fric et al. (2020) for an output csv with data metrics (presented in supplemental table 1).
 
 
 ```{r}
-
-##Fric et al includes different species names in results tables than found in data table. Manual corrections to match results tables:
-name_changes<-read_csv("data/name_changes.csv")
-table(occur$name[which(occur$name %in% name_changes$data_name)])
-
-for(namei in 1:nrow(name_changes)) {
-  occur$name[occur$name==name_changes$data_name[namei]]<-name_changes$results_name[namei]
-}
-
-rm(name_changes)
-## visualize data density by longitude
-hist(occur$decimalLongitude, main="Data density by Longitude") 
-#ID records by region. Everything East of -40 is Europe, the rest is N. America 
-occur<-occur %>% 
-  #Assign region by longitude.
-  mutate(region=ifelse(decimalLongitude>=(-40),"Europe","N. America"))
 
 #Tally the number of observations per dataset & calculate how each dataset spans latitude, year, altitude
 spans.summary<-occur %>%
@@ -231,6 +239,7 @@ grid.arrange(grobs=fig1panels[c(1:4)], nrow=2, ncol=2, top="Visualization of dat
 Data have now been formatted, identified by region, and summarized.
 The following code chunk applies the filters used in the Larsen & Shirey reanalysis and calculates summary data density statistics for supplemental table 1.
 
+Unlike Fric et al., we included first day of the month records
 Filters: 
 1 - altitude in [0m,500m]
 2 - 10 or more records when data is grouped by species, region, year, and latitudinal band
@@ -238,8 +247,8 @@ Filters:
 ```{r}
 #Summarize data availability for Larsen & Shirey re-analysis
 #Now, filter data for altitude & for cases with 10 or more records by species-region-year-latitude
-new.data.summary<-occur %>%
-  filter(alt>=0, alt<=500) %>%
+new.data.summary<-occur1 %>%
+  filter(between(alt,0,500), name!="Euphydryas aurinia") %>%
   # calculate data availability by species, region, latitude & year
   group_by(name, region, rndLat, year) %>% 
   add_count(name="group_n") %>% ## n. observations per group
@@ -265,7 +274,7 @@ rm(fric.data.summary, new.data.summary, endpt.summary)
 ```
 
 #### Curate data for reanalysis 
-This chunk of code filters data for reanalysis and visualize changes
+This chunk of code filters data for reanalysis and visualizes some differences
 
 ```{r}
 #FILTER DATA BY VOLTINISM
@@ -278,8 +287,7 @@ univoltine<-filter(voltindata, !Voltinism %in% multi)
 rm(voltindata, multi)
 
 #filter occurrence dataset to these species
-reanalysis.data<-merge(occur, univoltine, by=intersect(names(occur),names(univoltine)))
-
+reanalysis.data<-merge(occur1, univoltine, by=intersect(names(occur1),names(univoltine)))
 
 #filter data by altitude and data density
 reanalysis.data<-reanalysis.data %>%
@@ -316,8 +324,9 @@ grid.arrange(grobs=plotcompar[c(1:6)], nrow=3)
 
 ```
 
-##Estimate phenometrics using phest
-This chunk of code estimates onset and offset phenometrics by species-region-year-latitudinal_band using curated data. Please note that this chunk does take a few minutes to run. Also, warnings are automatically generated by "phest" when a correction is applied to the phenometric estimate. Additionally, "phest" throws a warning for CI estimation. We have explored this warning and don't believe that it is a problem; therefore we have suppressed the warning messages here.
+####Estimate phenometrics using phest
+This chunk of code estimates onset and offset phenometrics by species-region-year-latitudinal_band using curated data. 
+We use the phest package to estimate onset and offset of the flight perios based on occurrence data, when at least 10 observations exist for a species-region-year-latitudinal_band unit. Please note that this chunk does take a few minutes to run. Also, warnings are automatically generated by "phest" when a correction is applied to the phenometric estimate. Additionally, "phest" throws a warning for CI estimation. We have explored this warning and don't believe that it is a problem; therefore we have suppressed the warning messages here.
 
 ```{r}
 rm(plotcompar)
@@ -378,7 +387,7 @@ load("data/phenometrics.RData")
 datasets<-pheno.data %>%
   group_by(name, region) %>%
   tally()
-
+pheno.data<-na.omit(pheno.data)
 #Loop through datasets, run model for phenology by species & region, and store LM parameters
 onsetpheno<-list()
 termpheno<-list()
@@ -441,8 +450,8 @@ coef.plot1
 ```
 
 #### Compare statistical results to Fric et al.
-This chunk of code uses model outputs and compares them to the results of the Fric et al. analysis
-```{r}
+This chunk of code uses model outputs and compares them to the results of the Fric et al. analysis. It outputs Figure 2.
+```{r fig.height = 6, fig.width = 10, fig.align = "center"}
 ##Results and visualizations
 
 fric.results.lat<-read_excel("data/Fric_results.xlsx", sheet="models")
@@ -480,7 +489,7 @@ temp<-pivot_wider(filter(result, param=="rndLat"), id_cols =c(name, region),name
 result5<-temp %>%
   select(name, region, onset_coef=param.est_onset, onset_response=response_onset,term_coef=param.est_termination,term_response=response_termination) %>%
   mutate(modelnum=5)
-rm(temp,fric.results.lat,fric.results)
+rm(temp,fric.results.lat)
 
 #Combine all results into 1 data frame
 result.compar<-as.data.frame(rbind(fric1,fric2,fric3,fric4,result5))
@@ -557,29 +566,53 @@ p6<-term.st+labs(tag="F")
 
 #pdf_filename<-("output/LarsenShirey2020_Fig2.pdf")
 fig2<-grid.arrange(ncol=3, grobs=list(p1, p2, p3, p4, p5, p6), top="\n\n", bottom="\n\n", left="\n\n", right="\n\n", width=10, height=5) 
+#ggsave(pdf_filename, arrangeGrob(fig2, nrow=1), width=10, height=5, scale=1.5, dpi=600,units="in")
 fig2
-#ggsave(pdf_filename, arrangeGrob(tfig2, nrow=1), width=10, height=5, scale=1.5, dpi=600,units="in")
-
 ```
-
  
 ## Create results table (Supplemental Table 2)
  
 ```{r}
+fric.table<-fric.results %>%
+  filter(reanalyzed==1) %>%
+  select(name, region, model, onset_response, onset_p, onset_coef, term_response, term_p=term_p_mean, term_coef) 
 
-#summary(fric.results)
+fric.onset<-fric.table %>%
+  select(name:model, Fric_singleRegression_sign=onset_response, Fric_singleRegression_p=onset_p,Fric_singleRegression_coef=onset_coef,) %>%
+  mutate(phenometric="onset")
+fric.term<-fric.table %>%
+  select(name:model, Fric_singleRegression_sign=term_response, Fric_singleRegression_p=term_p,Fric_singleRegression_coef=term_coef,) %>%
+  mutate(phenometric="termination")
+fric.table<-rbind(fric.onset, fric.term)
+fric.table<-fric.table %>%
+  mutate(indep.variable=ifelse(model=="~latitude","latitude",ifelse(model=="~year","year",0)) ) 
+  
+fric1<-filter(fric.table,indep.variable %in% c("latitude","year"))
+fric2<-fric.table %>%
+  filter(!indep.variable %in% c("latitude","year")) %>%
+  select(name, region,phenometricFric_resid.regress_sign=Fric_singleRegression_sign, Fric_resid.regress_p=Fric_singleRegression_p,Fric_resid.regress_coef=Fric_singleRegression_coef) %>%
+  mutate(indep.variable="latitude")
 
-## Need ID	name_resultsfile	region	phenometric	indep.variable	Fric_singleRegression_Sign	Fric_resid.regress_sign	Reanalysis_sign	Reanalysis_p	Reanalysis_coefficient	Fric_resid.regress_p	Fric_resid.regress_coefficient	Fric_singleRegression_p	Fric_singleRegression_coefficient												
+reanalysis.table<-result %>%
+  select(name, region, phenometric=metric, param, response, param.p, param.est) %>%
+  mutate(indep.variable=ifelse(param=="year","year","latitude"))%>%
+  select(name, region, phenometric, indep.variable, Reanalysis_sign=response, Reanalysis_p=param.p, Reanalysis_coef=param.est)
+
+supptable2<-merge(reanalysis.table,fric1[,c(1,2,4:8)], by=intersect(names(reanalysis.table),names(fric1[,c(1,2,4:8)])))  
+
+supptable2<-merge(supptable2,fric2,by=intersect(names(supptable2),names(fric2)), all.x=T)  
+summary(supptable2)
+##This partial supplementary table 2 does not include the residual regression year results
+#write.csv(supptable2,file="output/supp_table2_part.csv")
 
 ```
 
-
-## Create panels for Supplemental Figure 2
-## In this code chunk, we used lm.model$call references in geom_smooth, which created a string of outputs showing the calls. We have thus changed the geom_smooth parameters to simply reference  x, y, and method="lm"
+#### Create panels for Supplemental Figure 1
+In this code chunk, we previously used lm.model$call references in geom_smooth, which created a string of outputs showing the calls. We have thus changed the geom_smooth parameters to simply reference  x, y, and method="lm"
 
 ```{r echo=F, warning=F, message=F}
 
-#################### SUPPLEMENTAL FIGURE 2 
+#################### SUPPLEMENTAL FIGURE 1 
 
 
 ## PLOT PARAMETERS 
@@ -660,7 +693,7 @@ for(rowi in 1:nrow(datasets)) {
       geom_smooth(data=onsetdata, aes(x=rndLat,y=SuccDay),  method="lm", linetype=onsetline, color=onsetcolor, fill=onsetcolor) + 
       geom_smooth(data=termdata, aes(x=rndLat,y=SuccDay), method="lm", linetype=termline, color=termcolor, fill=termcolor) + 
       scale_color_manual(values=c("black","red")) +
-      xlim(xmin,max(speciesdata$rndLat)) + ylim(min(speciesdata$SuccDay),max(speciesdata$SuccDay)) +
+      xlim(xmin,max(fric.data$rndLat)) + ylim(min(fric.data$SuccDay),max(fric.data$SuccDay)) +
       theme_light() +   theme(legend.position="none") + 
       theme(plot.title = element_text(size=11,face = "italic"), axis.title=element_text(size=10), plot.margin = margin(t1, m0, b1, 2, "cm")) +
       labs(x="Latitudinal Band", y="Day of Year (DOY)", title=mytitle)
@@ -705,11 +738,7 @@ for(rowi in 1:nrow(datasets)) {
     sec.axis = sec_axis( trans=~.-200, name="Termination Phenology Shift"))
 
 }
-#pdf("testSuppFig1ab.pdf", dpi=600)
-#sup1a
-#sup1b
 
-#dev.off()
 
 #################### SUPPLEMENTAL FIGURE 2 COL 1-2: 
 ##Col 3: Reanalysis: DOY ~ latitude + year, displaying latitude results
@@ -752,16 +781,15 @@ for(rowi in 1:nrow(datasets)) {
       #This change does not affect the final figure.
       #geom_smooth(data=pheno.rowi, formula = str(onset.model$call), aes(x=rndLat, y=onset),  method="lm", linetype=onsetline, color=onsetcolor, fill=onsetcolor) + 
       #geom_smooth(data=pheno.rowi, formula = str(term.model$call),  aes(x=rndLat, y=term), method="lm", linetype=termline, color=termcolor, fill=termcolor) + 
-    
 }
-#sup1c
+
 ```
 
-###A small break between creating the panels and assmembling supplemental figure 1.
-### The chunk below combines the panels into supplemental figure 1.
-```{r warning=F}
+#####A small break between creating the panels and assmembling Supplemental Figure 1.
+The chunk below combines the panels into Supplemental Figure 1.
+```{r warning=F, fig.height = 7, fig.width = 10, fig.align = "center"}
 
-#### COMBINE ALL PANELS INTO SUPPLEMENTAL FIGURE 2
+#### COMBINE ALL PANELS INTO SUPPLEMENTAL FIGURE 1
 (p1<-grid.arrange(sup1a[[1]],sup1b[[1]],sup1c[[1]],sup1a[[2]],sup1b[[2]],sup1c[[2]],nrow = 2))
 (p2<-grid.arrange(sup1a[[3]],sup1b[[3]],sup1c[[3]],sup1a[[4]],sup1b[[4]],sup1c[[4]],nrow = 2))
 (p3<-grid.arrange(sup1a[[5]],sup1b[[5]],sup1c[[5]],sup1a[[6]],sup1b[[6]],sup1c[[6]],nrow = 2))
@@ -774,14 +802,8 @@ for(rowi in 1:nrow(datasets)) {
 (p10<-grid.arrange(sup1a[[19]],sup1b[[19]],sup1c[[19]],sup1a[[20]],sup1b[[20]],sup1c[[20]],nrow = 2))
 (p11<-grid.arrange(sup1a[[21]],sup1b[[21]],sup1c[[21]],sup1a[[22]],sup1b[[22]],sup1c[[22]],nrow = 2))
 
-
 ##### END SUP FIG 1
 
-
-
 ```
-Still needed: 
-Code to create columns 2 and 3 of supplemental figure 1.
-Code to create supplemental table 2.
 
 This is the end of this analysis. 
