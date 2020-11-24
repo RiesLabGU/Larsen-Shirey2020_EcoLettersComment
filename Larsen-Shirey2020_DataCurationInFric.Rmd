@@ -307,7 +307,7 @@ grid.arrange(termp1,onsetp1)
 
 <br>
 ### Recreate original results
-We also wanted to confirm that we understood correctly the Fric et al. analysis. We attemped to recreate the original Fric et al. analysis
+We also wanted to confirm that we understood correctly the Fric et al. analysis. We attempted to recreate the original Fric et al. analysis
 
 ```{r reproduce original results}
 ## NEED TO ADD THIS CODE
