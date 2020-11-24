@@ -137,7 +137,7 @@ Early on in data exploration we were concerned with the range of altitude values
 One aspect of our data exploration for altitude involved examining outliers and looking up specific ocurrence records in GBIF, which were either below 0m or in the top quartile of altitudes. Looking at these records led us to understand that 
 <ul>
 <li>(1) GIS coordinates had often been assigned by placename, or were otherwise inaccurate, and </li><li>(2) altitudes had been obtained by using the Google API to extract altitude for coordinates.</li></ul>
- included a record at "Mount Shasta" being located to the peak altitude of the mountain. This is an extreme example, but indicates a potentially widespread problem with altitudes used in this analysis.
+The max altitude belongs to a record at "Mount Shasta" which is attributed to altitude very near the peak of the mountain. This is an extreme example, but indicates a potentially widespread problem with altitudes used in this analysis.
 
 ```{r data exploration: altitude}
 #basic range & frequency in data
@@ -161,7 +161,7 @@ ggplot(altdata, aes(rndLat, alt.grp, fill= log(n))) +
 
 ```
 <p>Outliers appear to be a problem with altitude. Reviewing GBIF records, this appears to be primarily due to the assumption by Fric et al. that the GIS coordinates are precise and that the google API would provide accurate altitude metrics. Based on the records we spot-checked, when GBIF includes elevation, the values do not match those used in the analysis.</p>
-A few examples:
+A few examples including the lowest and highest alt records, as well as some additional records selected arbitrarily from the extreme quantiles of altitude:
 <ul>
 <li> 1953 Anthocharis sara record (row.index 166; altitude -525.96m) is from https://www.gbif.org/occurrence/1039154960; geocoordinates were assigned via vertnet in 2015. These coordinates are located in the ocean. 
 The GBIF record traces to 
@@ -241,9 +241,9 @@ ggplot(data=lat.summary2, aes(x=nlats, y=prop.singletons, color=region)) + geom_
 ``` 
 
 ### Data exploration: year
-As expected, most data are quite recent
-- By selecting the min and max day of year per latitudinal band as onset & termination, the authors vastly decrease their sample size and remove most of the variation along the year and altitude axes
-
+As expected, most data are quite recent. 
+ By selecting the min and max day of year per latitudinal band as onset & termination, the authors vastly decrease their sample size and remove most of the variation along the year and altitude axes
+<p>We arbitrarily selected two species, one with a low sample size and one with a large sample size, to visualize.
 ```{r explore year axis, echo=F, message=F, warning=F}
 
 yrdata<-fricdata%>% group_by(year, rndLat) %>% tally()
