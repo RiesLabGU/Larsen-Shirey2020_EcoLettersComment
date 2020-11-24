@@ -77,7 +77,7 @@ rm(data1,data2)
 ```
 alldata now contains the raw data provided by Fric et al. in a usable format.
 ### Data exploration 1
-Now we assign region, reconcile names that don't match between the data file and results files, and filter the Fric dataset to remove first day of the month records to obtain the dataset used in Fric et al.
+Now we assign region, reconcile names that don't match between the data file and results files provided in the original supplement, and filter the Fric dataset to remove first day of the month records to obtain the dataset used in Fric et al.
 ```{r  species names & regions}
 summary(alldata)
 ##Fric et al identifies datasets by region (N. America, Europe), but the data file does not include this information. We label data by region using longitude:
@@ -134,11 +134,10 @@ save(fricdata,file="data/occurrences_FricAnalysis.RData")
 ### Data exploration: altitude (elevation)
 <p>(We defer to the Fric et al use of "altitude" for clarity)</p>
 Early on in data exploration we were concerned with the range of altitude values in the data. 
-One aspect of our data exploration for altitude involved examining outliers and looking up specific ocurrence records in GBIF, which were either below 0m or in the top quartile of altitudes. Looking at these records led us to understand that 
+One aspect of our data exploration for altitude involved examining outliers and spot-checking specific occurrence records in GBIF, which were either below 0m or in the top quartile of altitudes. Looking at these records led us to understand that 
 <ul>
-<li>(1) GIS coordinates had often been assigned by placename, or were otherwise inaccurate, and </li><li>(2) altitudes had been obtained by using the Google API to extract altitude for coordinates.</li></ul>
- included a record at "Mount Shasta" being located to the peak altitude of the mountain. This is an extreme example, but indicates a potentially widespread problem with altitudes used in this analysis.
-
+<li>(1) GIS coordinates had often been assigned by placename, or were otherwise inaccurate, and </li><li>(2) altitudes obtained by using the Google API to extract altitude for coordinates did not provide reliable altitudes for the underlying occurrences.</li></ul>
+Here we examine broad patterns and specific outlier cases.
 ```{r data exploration: altitude}
 #basic range & frequency in data
 summary(fricdata$alt)
@@ -147,7 +146,6 @@ hist(fricdata$alt)
 print(paste(nrow(filter(fricdata,alt<0)),"records below sea level represent", round(nrow(filter(fricdata,alt<0))/nrow(fricdata)*100,2),"percent of all ocurrence records. We examined lat/long for many of these records and all examined locations were in bodies of water.",sep=" "))
 #how many records are above 500m?
 print(paste(nrow(filter(fricdata,alt>500)),"records above 500m represent", round(nrow(filter(fricdata,alt>500))/nrow(fricdata)*100,2),"percent of all ocurrence records. We examined lat/long and location for a small subset of high altitude records and found vague place names had been used for geolocation.",sep=" "))
-
 
 #How many in the 0-500m range
 print(paste(nrow(filter(fricdata,between(alt,0,500))),"records  within 0-500m represent", round(nrow(filter(fricdata,between(alt,0,500)))/nrow(fricdata)*100,2),"percent of all ocurrence records. For reanalysis, we can constrain data to these records with minimal impact on data density. ",sep=" "))
@@ -160,8 +158,8 @@ ggplot(altdata, aes(rndLat, alt.grp, fill= log(n))) +
   xlim(20,80) + ylim(0,80)
 
 ```
-<p>Outliers appear to be a problem with altitude. Reviewing GBIF records, this appears to be primarily due to the assumption by Fric et al. that the GIS coordinates are precise and that the google API would provide accurate altitude metrics. Based on the records we spot-checked, when GBIF includes elevation, the values do not match those used in the analysis.</p>
-A few examples:
+<p>Outliers appear to be a problem with altitude. Reviewing GBIF records, this appears to be primarily due to the assumption by Fric et al. that the GIS coordinates are precise and that the google API would provide accurate and reliable altitude metrics. Based on the records we spot-checked, when GBIF includes elevation, the values do not match those used in the analysis.</p>
+A few examples including the lowest and highest alt records, as well as some additional records selected arbitrarily from the extreme quantiles of altitude:
 <ul>
 <li> 1953 Anthocharis sara record (row.index 166; altitude -525.96m) is from https://www.gbif.org/occurrence/1039154960; geocoordinates were assigned via vertnet in 2015. These coordinates are located in the ocean. 
 The GBIF record traces to 
@@ -215,7 +213,7 @@ print(paste(nrow(filter(templms,pval<0.05)),"datasets have significant collinear
 - In Fric et al. (2020), datasets were analysed with as few as 15 ocurrence records.
 <br>
 - We examine the prevalence of singleton ocurrences, when just one ocurrence was available in a latitudinal band.
-
+<br>
 
 ```{r data density 1}
 lat.summary1<-fricdata %>%
@@ -241,9 +239,9 @@ ggplot(data=lat.summary2, aes(x=nlats, y=prop.singletons, color=region)) + geom_
 ``` 
 
 ### Data exploration: year
-As expected, most data are quite recent
-- By selecting the min and max day of year per latitudinal band as onset & termination, the authors vastly decrease their sample size and remove most of the variation along the year and altitude axes
-
+As expected, most data are quite recent. 
+ By selecting the min and max day of year per latitudinal band as onset & termination, the authors vastly decrease their sample size and remove most of the variation along the year and altitude axes
+<p>We arbitrarily selected two species, one with a low sample size and one with a large sample size, to visualize.
 ```{r explore year axis, echo=F, message=F, warning=F}
 
 yrdata<-fricdata%>% group_by(year, rndLat) %>% tally()
@@ -292,7 +290,7 @@ termp2<-ggplot(ac2, aes(year, rndLat, fill= SuccDay)) +
 #grid.arrange(peakp1,termp1,onsetp1)
 grid.arrange(peakp1,peakp2,termp1,termp2,onsetp1,onsetp2, nrow=3)
 
-rm(ag1.ag2,ac1,ac2)
+rm(ag1,ag2,ac1,ac2)
 yrdata<-fricdata%>% group_by(year, rndLat, name, region) %>% summarize(MinSD=min(SuccDay), MaxSD=max(SuccDay)) 
 
 yrdata1<-yrdata %>%group_by(year, rndLat) %>% summarize(meanmin=mean(MinSD, na.rm=T),meanmax=mean(MaxSD,na.rm=T))
