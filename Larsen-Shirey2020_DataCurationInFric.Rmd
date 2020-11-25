@@ -1,7 +1,7 @@
 ---
 title: "Fric et al. critiques: data curation"
 author: "Elise Larsen & Vaughn Shirey"
-date: "11/23/2020"
+date: "Updated 11/25/2020; Initially assembled 11/23/2020"
 output: html_document
 ---
 
@@ -76,10 +76,31 @@ rm(data1,data2)
 
 ```
 alldata now contains the raw data provided by Fric et al. in a usable format.
+<h4> New code 11/25/2020: day of year reconciliation</h4>
+<p>Until today, we had assumed that the "SuccDay" values were a consistent index for day of year. However, we had not documented our initial spot-checking of altitudes. While identifying GBIF records for documented sopt-checking, we found some inconsistencies in the SuccDay value. Here we identify how "SuccDay" was calculated.</p>
+
+```{r SuccDay review}
+#DOES SUCCDAY MATCH DOY?
+library(lubridate)
+alldata<-na.omit(alldata)
+checkdays<-alldata %>%
+  mutate(doy=yday(as.Date(paste(year,month,day, sep="-"), "%Y-%m-%d")), 
+         daydiff=SuccDay-doy, fricday=(month-1)*30+day) %>%
+  select(name,day,month,year,SuccDay,doy,daydiff,fricday)
+#summary(checkdays)
+table(checkdays$fricday-checkdays$SuccDay)
+ggplot(data=checkdays, aes(y=daydiff, x=doy, color=as.factor(month))) + geom_jitter()
+
+#we'd prefer to use calendar day
+alldata<-alldata %>%mutate(doy=yday(as.Date(paste(year,month,day, sep="-"),"%Y-%m-%d")))
+
+```
+
 ### Data exploration 1
 Now we assign region, reconcile names that don't match between the data file and results files provided in the original supplement, and filter the Fric dataset to remove first day of the month records to obtain the dataset used in Fric et al.
 ```{r  species names & regions}
 summary(alldata)
+
 ##Fric et al identifies datasets by region (N. America, Europe), but the data file does not include this information. We label data by region using longitude:
 ## visualize data density by longitude
 hist(alldata$decimalLongitude, main="Data density by Longitude") 
@@ -92,7 +113,7 @@ length(unique(alldata$name))
 #What are the names in the dataset?
 data.names<-sort(unique(alldata$name))
 #Which of these names shows up in the results?
-result.names<-na.omit(read_excel("fric_supplements/Supplementary Table 2_final.xlsx", sheet="~latitude", range="A3:A113"))
+result.names<-na.omit(read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~latitude", range="A3:A113"))
 resultnames<-(strsplit(result.names$Species, " "))
 result.names<-NULL
 for(i in 1:length(resultnames)) {
@@ -303,13 +324,5 @@ termp1<-ggplot(yrdata1, aes(year, rndLat, fill= meanmax)) +
   geom_tile() + labs(y="Latitudinal band", fill="Mean Term.")+ xlim(1800,2020)
 grid.arrange(termp1,onsetp1)
 
-```
-
-<br>
-### Recreate original results
-We also wanted to confirm that we understood correctly the Fric et al. analysis. We attempted to recreate the original Fric et al. analysis
-
-```{r reproduce original results}
-## NEED TO ADD THIS CODE
 ```
 End of File
