@@ -1,0 +1,273 @@
+---
+title: "Supplemental Figure 1"
+author: "Larsen & Shirey"
+date: "Updated 2-Dec-2020; separated from reanalysis 25-Nov-2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+<h2>*</h2>
+<h3>Create panels for Supplemental Figure 1</h3>
+<p>In this code chunk, we previously used lm.model$call references in geom_smooth, which created a string of outputs showing the calls. The current simple lm still includes geom_smooth output text, which would be nice to suppress if we can figure that out. </p>
+
+```{r data import}
+library(tidyverse)
+library(ggplot2)
+library(ggExtra)
+library(gridExtra)
+
+load("data/occurrences_FricAnalysis.RData")
+load("data/phenometrics.RData")
+reanalysis<-read_csv("outputs/supp_table2_part.csv")
+datasets<-pheno.data %>% group_by(name, region) %>% tally()
+datasets<-datasets %>% mutate(set=paste(name,region,sep="-"))
+```
+<h2>*</h2>
+<br>Create Supplemental Figure 1
+```{r supplemental figure 1 panels, echo=F, warning=F, message=F}
+
+#################### SUPPLEMENTAL FIGURE 1 
+
+
+## PLOT PARAMETERS 
+m0 <- 0.5 #plot margins
+negslope <- "blue"
+posslope <- "darkgreen"
+flatslope <- "black"
+singles <- "red"
+
+
+#Filter data to reanalyzed datasets and use Fric et al. method of defining Onset & Termination
+#Keep all data but label records used as onset and offset
+fric.data<-fricdata %>%
+  filter(paste(name, region,sep="-")%in%datasets$set) %>%
+  group_by(name,region, rndLat) %>%
+  mutate(onset=min(SuccDay), term=max(SuccDay)) %>%
+  add_tally() %>%
+  mutate(Group=ifelse(n==1,1,0)) #, onsetobs=ifelse(onset==SuccDay,1,0), termobs=ifelse(term==SuccDay,1,0)) 
+
+#################### SUPPLEMENTAL FIGURE 2 COL 1-2: 
+##Col 1 - Fric analysis: DOY ~ latitude 
+##Col 2 - Fric analysis: residuals(residuals(DOY~year)~altitude) ~ latitude
+
+sup1a<-list()
+sup1b<-list()
+for(rowi in 1:nrow(datasets)) {
+    #Filter Fric data
+    speciesdata<-  filter(fric.data, name==datasets$name[rowi], region==datasets$region[rowi])
+    onsetdata<-  filter(speciesdata, onset==SuccDay)
+    termdata<-  filter(speciesdata, term==SuccDay)
+    #Column 1
+    #Fric onset parameters
+    fric.onset.lm<-lm(onset~rndLat, data=onsetdata)
+    fric.term.lm<-lm(term~rndLat, data=termdata)
+    fric.onset.coef<-summary(fric.onset.lm)$coefficients
+    fric.term.coef<-summary(fric.term.lm)$coefficients
+    
+    #Column 2
+    #regression of residuals for onset
+    fric.onset.alt<-lm(onset~alt, data=onsetdata)
+    onsetdata$alt.resid<-summary(fric.onset.alt)$residuals
+    fric.onset.yralt<-lm(alt.resid~year, data=onsetdata)
+    onsetdata$yralt.resid<-summary(fric.onset.yralt)$residuals
+    fric.onset.resid<-lm(yralt.resid~rndLat, data=onsetdata)
+    fric.onset.resid.coef<-summary(fric.onset.resid)$coefficients
+    
+    #regression of residuals for termination
+    fric.term.alt<-lm(term~alt, data=termdata)
+    termdata$alt.resid<-summary(fric.term.alt)$residuals
+    fric.term.yralt<-lm(alt.resid~year, data=termdata)
+    #We add 200 here because its the easiest way *FOR US* to space out the onset & termination lines in column 2
+    termdata$yralt.resid<-summary(fric.term.yralt)$residuals+ 200
+    fric.term.resid<-lm(yralt.resid~rndLat, data=termdata)
+    fric.term.resid.coef<-summary(fric.term.resid)$coefficients
+    
+    #set parameters for Column 1 based on LM results 
+    onsetline<-ifelse(fric.onset.coef[2,4]<0.05,"dashed","dotted")
+    onsetcolor<-ifelse(fric.onset.coef[2,4]<0.05,ifelse(fric.onset.coef[2,1]>0,posslope,negslope),flatslope)
+
+    termline<-ifelse(fric.term.coef[2,4]<0.05,"dashed","dotted")
+    termcolor<-ifelse(fric.term.coef[2,4]<0.05,ifelse(fric.term.coef[2,1]>0,posslope,negslope),flatslope)
+
+    # For 2 species, our LM here does not produce results consistent with Fric et al. so we manually change the line parameters. there is probably ba more elegant way we could incorporate this into code by comparing lm results to fric results table
+    if(rowi==16) {onsetcolor <- negslope; onsetline <- "dashed"}
+    if(rowi==20) {termcolor <- posslope; termline <- "dashed"}
+    
+    mytitle<-paste(datasets$name[rowi])
+    #set xmin to 35, unless there are data south of that latitude
+    xmin<-ifelse(min(speciesdata$rndLat)<35,min(speciesdata$rndLat),35)
+    #Set top and bottom margins for odd (top of page) and even (bottom of page) rows
+    t1<-ifelse((rowi %% 2) == 0,0.5,2.8)
+    b1<-ifelse((rowi %% 2) == 0,2.8,0.5)
+    #Create column 1 plot
+    sup1a[[rowi]] <- ggplot(speciesdata, aes(x=rndLat, y=SuccDay, color=as.factor(Group))) +
+      geom_point(aes(color=as.factor(Group)), shape=3) +
+      geom_point(data=onsetdata, aes(x=rndLat, y=SuccDay, color=as.factor(Group))) + 
+      geom_point(data=termdata, aes(x=rndLat, y=SuccDay, color=as.factor(Group))) + 
+      geom_segment(data=filter(speciesdata, onset==SuccDay | term==SuccDay), aes(x=rndLat, y=onset, xend=rndLat, yend=term)) + 
+      geom_smooth(data=onsetdata, aes(x=rndLat,y=SuccDay),  method="lm", linetype=onsetline, color=onsetcolor, fill=onsetcolor) + 
+      geom_smooth(data=termdata, aes(x=rndLat,y=SuccDay), method="lm", linetype=termline, color=termcolor, fill=termcolor) + 
+      scale_color_manual(values=c("black","red")) +
+      xlim(xmin,max(fric.data$rndLat)) + ylim(min(fric.data$SuccDay),max(fric.data$SuccDay)) +
+      theme_light() +   theme(legend.position="none") + 
+      theme(plot.title = element_text(size=11,face = "italic"), axis.title=element_text(size=10), plot.margin = margin(t1, m0, b1, 2, "cm")) +
+      labs(x="Latitudinal Band", y="Day of Year (DOY)", title=mytitle)
+    rm(onsetline,onsetcolor,termline,termcolor)
+    
+    #Supplemental Figure 1 Column 2
+    #set parameters for Column 2 based on LM results 
+    onsetline<-ifelse(fric.onset.resid.coef[2,4]<0.05,"dashed","dotted")
+    onsetcolor<-ifelse(fric.onset.resid.coef[2,4]<0.05,ifelse(fric.onset.resid.coef[2,1]>0,posslope,negslope),flatslope)
+
+    termline<-ifelse(fric.term.resid.coef[2,4]<0.05,"dashed","dotted")
+    termcolor<-ifelse(fric.term.resid.coef[2,4]<0.05,ifelse(fric.term.resid.coef[2,1]>0,posslope,negslope),flatslope)
+    #Set top and bottom margins for odd (top of page) and even (bottom of page) rows
+    t2<-ifelse((rowi %% 2) == 0,0.5,2.8)
+    b2<-ifelse((rowi %% 2) == 0,2.8,0.5)
+    #Create column 2 plot
+    #sanity check: onset alone
+     test<-ggplot(onsetdata, aes(x=rndLat, y=yralt.resid)) +
+      geom_point(data=onsetdata,aes(x=rndLat, y=yralt.resid, color=as.factor(Group)), shape=24) +
+      geom_point(data=filter(onsetdata, Group==1),aes(x=rndLat, y=yralt.resid, color=as.factor(Group)), fill="red",shape=24) +
+      #geom_point(data=termdata,aes(x=rndLat, y=yralt.resid, color=as.factor(Group), fill=as.factor(Group)), shape=25) +
+      scale_color_manual(values=c("black","red")) +
+      geom_smooth(data=onsetdata, aes(x=rndLat,y=yralt.resid),  method="lm", linetype=onsetline, color=onsetcolor, fill=onsetcolor) + 
+      #geom_smooth(data=termdata, formula = str(fric.term.resid$call), method="lm", linetype=termline, color=termcolor, fill=termcolor) + 
+      theme_light() +   theme(legend.position="none") + 
+      theme(axis.title=element_text(size=10), plot.margin = margin(t2, m0, b2,m0, "cm")) +
+      labs(x="Latitudinal Band", y="Residuals from Onset regressions",title="")
+     #The full plot
+    sup1b[[rowi]] <- ggplot(onsetdata, aes(x=rndLat, y=yralt.resid)) +
+      geom_point(data=onsetdata,aes(x=rndLat, y=yralt.resid, color=as.factor(Group)), shape=24) +
+      geom_point(data=filter(onsetdata, Group==1),aes(x=rndLat, y=yralt.resid, color=as.factor(Group)), fill="red",shape=24) +             geom_point(data=termdata,aes(x=rndLat, y=yralt.resid, color=as.factor(Group)), shape=25) +
+      geom_point(data=filter(termdata, Group==1),aes(x=rndLat, y=yralt.resid, color=as.factor(Group)), fill="red",shape=25) +
+      scale_color_manual(values=c("black","red")) +
+      geom_smooth(data=onsetdata, aes(x=rndLat,y=yralt.resid),  method="lm", linetype=onsetline, color=onsetcolor, fill=onsetcolor) + 
+      geom_smooth(data=termdata, aes(x=rndLat,y=yralt.resid), method="lm", linetype=termline, color=termcolor, fill=termcolor) + 
+      theme_light() +   theme(legend.position="none") + 
+      theme(axis.title=element_text(size=10), plot.margin = margin(t2, m0, b2,m0, "cm")) +
+      ylim(-100,300) +
+      labs(x="Latitudinal Band", title="") + 
+        # Custom the Y scales & Add a second axis and specify its features
+  scale_y_continuous(name = "Onset Phenology Shift",
+    sec.axis = sec_axis( trans=~.-200, name="Termination Phenology Shift"))
+
+}
+
+
+#################### SUPPLEMENTAL FIGURE 2 COL 3: 
+##Col 3: Reanalysis: DOY ~ latitude + year, displaying latitude results
+
+sup1c<-list()
+
+for(rowi in 1:nrow(datasets)) {
+    #Filter reanalysis data
+  pheno.rowi<-pheno.data %>%
+    filter(name==datasets$name[rowi], region==datasets$region[rowi], onset>29) 
+  #model  for onset
+  onset.model<-lm(onset~rndLat+year, data=pheno.rowi)   
+  #model for termination
+  term.model<-lm(term~rndLat+year, data=pheno.rowi)   
+    
+  onset.params<-filter(reanalysis,name_resultsfile==datasets$name[rowi], region==datasets$region[rowi],indep.variable=="latitude",phenometric=="onset")
+  term.params<-filter(reanalysis,name_resultsfile==datasets$name[rowi], region==datasets$region[rowi],indep.variable=="latitude",phenometric=="termination")
+
+  
+    #set parameters based on LM results 
+    onsetline<-ifelse(onset.params$Reanalysis_p<0.05,"dashed","dotted")
+    onsetcolor<-ifelse(onset.params$Reanalysis_p<0.05,ifelse(onset.params$Reanalysis_coefficient>0,posslope,negslope),flatslope)
+
+    termline<-ifelse(term.params$Reanalysis_p<0.05,"dashed","dotted")
+    termcolor<-ifelse(term.params$Reanalysis_p<0.05,ifelse(term.params$Reanalysis_coefficient>0,posslope,negslope),flatslope)
+
+    #Set top and bottom margins for odd (top of page) and even (bottom of page) rows
+    t3<-ifelse((rowi %% 2) == 0,0.5,2.8)
+    b3<-ifelse((rowi %% 2) == 0,2.8,0.5)
+    
+    #Create plot
+    
+    sup1c[[rowi]] <- ggplot(pheno.rowi, aes(x=rndLat, y=onset)) + 
+      geom_point(data=pheno.rowi,aes(x=rndLat, y=onset),shape=24) +              geom_point(data=pheno.rowi,aes(x=rndLat, y=term),shape=25) +      
+      geom_smooth(data=pheno.rowi, aes(x=rndLat, y=onset),  method="lm", linetype=onsetline, color=onsetcolor, fill=onsetcolor) + 
+      geom_smooth(data=pheno.rowi, aes(x=rndLat, y=term), method="lm", linetype=termline, color=termcolor, fill=termcolor) +
+      theme_light() +   theme(legend.position="none") + 
+      ylim(30,330) + xlim(50,70) +
+      theme(plot.title = element_text(size=11,face = "italic"), axis.title=element_text(size=10), plot.margin = margin(t3, 2, b3, m0, "cm")) +
+      labs(x="Latitudinal Band", y="Day of Year (DOY)", title="")
+      #For the published figure, we used these geom_smooths. Here they have been commented out because they cause many messages such as:  language lm(formula = onset ~ rndLat, data = onsetdata); language lm(formula = term ~ rndLat, data = termdata)
+      #This change does not affect the final figure.
+      #geom_smooth(data=pheno.rowi, formula = str(onset.model$call), aes(x=rndLat, y=onset),  method="lm", linetype=onsetline, color=onsetcolor, fill=onsetcolor) + 
+      #geom_smooth(data=pheno.rowi, formula = str(term.model$call),  aes(x=rndLat, y=term), method="lm", linetype=termline, color=termcolor, fill=termcolor) + 
+}
+
+```
+<h2>*</h2>
+A small break between creating the panels and assmembling Supplemental Figure 1.
+The chunk below combines the panels into Supplemental Figure 1.
+```{r combining panels for SF1, echo=F, warning=F, fig.height = 7, fig.width = 10, fig.align = "center"}
+
+#### COMBINE PANELS FOR SUPPLEMENTAL FIGURE 1
+(p1<-grid.arrange(sup1a[[1]],sup1b[[1]],sup1c[[1]],sup1a[[2]],sup1b[[2]],sup1c[[2]],nrow = 2))
+(p2<-grid.arrange(sup1a[[3]],sup1b[[3]],sup1c[[3]],sup1a[[4]],sup1b[[4]],sup1c[[4]],nrow = 2))
+(p3<-grid.arrange(sup1a[[5]],sup1b[[5]],sup1c[[5]],sup1a[[6]],sup1b[[6]],sup1c[[6]],nrow = 2))
+(p4<-grid.arrange(sup1a[[7]],sup1b[[7]],sup1c[[7]],sup1a[[8]],sup1b[[8]],sup1c[[8]],nrow = 2))
+(p5<-grid.arrange(sup1a[[9]],sup1b[[9]],sup1c[[9]],sup1a[[10]],sup1b[[10]],sup1c[[10]],nrow = 2))
+(p6<-grid.arrange(sup1a[[11]],sup1b[[11]],sup1c[[11]],sup1a[[12]],sup1b[[12]],sup1c[[12]],nrow = 2))
+(p7<-grid.arrange(sup1a[[13]],sup1b[[13]],sup1c[[13]],sup1a[[14]],sup1b[[14]],sup1c[[14]],nrow = 2))
+(p8<-grid.arrange(sup1a[[15]],sup1b[[15]],sup1c[[15]],sup1a[[16]],sup1b[[16]],sup1c[[16]],nrow = 2))
+(p9<-grid.arrange(sup1a[[17]],sup1b[[17]],sup1c[[17]],sup1a[[18]],sup1b[[18]],sup1c[[18]],nrow = 2))
+(p10<-grid.arrange(sup1a[[19]],sup1b[[19]],sup1c[[19]],sup1a[[20]],sup1b[[20]],sup1c[[20]],nrow = 2))
+(p11<-grid.arrange(sup1a[[21]],sup1b[[21]],sup1c[[21]],sup1a[[22]],sup1b[[22]],sup1c[[22]],nrow = 2))
+
+##### END SUP FIG 1
+
+```
+<h2>*</h2>
+<p>Below is the code used to create Supplemental Figure 1 in R, for documentation.  </p>
+We hope to add a live link to View Supplemental Figure 1 pdf.
+
+```{r complete supplemental figure 1, echo=F}
+#library(ggpubr)
+#This code chunk adds the caption information for Supplemental Figure 1 and creates PDF output.
+
+### ADD TITLE & CAPTION TEXT to SF1
+#text1<-paste("Larsen and Shirey 2020 Supplemental Figure 1")
+#text2<-paste("These panels display the data and regression results for onset and termination across models. Each row of 3 panels represents a",
+#            "species in the re-analysis. In the left column, all raw occurrence data are shown as plus symbols' while onset and termination  ",
+#            "are shown as diamonds; red points indicate individual observations used as both onset and termination. Fric et al.’s single     ",
+#            "regression results of DOY ~ latitude for onset and termination are overlaid on the data. In the middle column, the residuals    ",
+#            "used in the Fric et al. (2020) regression of residuals are shown for onset (upward triangle) and termination (downward triangle)",
+#            "respectively, with red indicating records of observations used as both onset and termination. Because each dataset is residuals,",
+#            "the 'phenology shift' data are centered around 0 and the termination axis is shifted for easier interpretation. The slopes      ",
+#            "display the regression of residuals results from Fric et al. (2020). The right column shows the calculated onset  (upward       ",
+#            "triangle) and termination (downward triangle) phenometrics calculated using the phest package in R. (Multiple observations for  ",
+#            "a latitudinal band represent different years), with the results from the multiple regression reanalysis. For all panels, the    ",
+#            "line format demonstrates positive (green, dashed), non-significant (black, dotted), or negative (blue, dashed) correlations with",
+#            "latitude in the corresponding models. While the Fric et al. analyses were generally reproducible, significance coding matches   ",
+#            "that reported in Fric et al. ST2, rather than our reproduction. We were unable to reproduce p values < 0.05 for the following   ",
+#            "single regression analyses: E. maturna onset and L. virgaureae termination.",sep=" \n ")
+
+
+#spaces<-paste(" ")
+#tg <- text_grob(text1, just="centre",size=18)
+#th <- text_grob(text2, just="left",size=10)
+#ts <- text_grob(spaces, size=40)
+#lay <- rbind(c(1,1,1),c(2,NA,NA),c(3,4,5))
+
+
+###  SUPP FIG 1  
+#p0<-grid.arrange(tg,th,ts,nrow = 3,layout_matrix = lay, heights=c(1,2,3))
+#SF1<-grid.arrange(p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11, nrow=12)
+
+#pdf("outputs/Larsen_Shirey2020_SuppFigure1.pdf", width=11, height=8.5)
+#p0; p1; p2; p3; p4; p5; p6; p7; p8; p9; p10; p11
+#dev.off()
+```
+<br>
+End of file. 
+
+Author notes - Future updates should:
+Remove variables when we're done with them
+See if we can suppress geom_smooth() messages

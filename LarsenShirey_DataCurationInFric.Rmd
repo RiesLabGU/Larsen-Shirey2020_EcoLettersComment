@@ -1,0 +1,289 @@
+---
+title: "Fric et al. critiques: data curation"
+author: "Elise Larsen & Vaughn Shirey"
+date: "Updated 2-Dec-2020; Initially assembled 23-Nov-2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Here we explore the occurrence data from Fric et al. (2020) 
+This gives a detailed account of some data curation issues we observed in the Fric et al. data and curation.
+```{r set up workspace, message=F}
+rm(list=ls())
+# load libraries
+library(tidyverse)
+library(readxl)
+library(ggplot2)
+library(ggExtra)
+library(gridExtra)
+# install.packages("viridis")
+library(viridis)
+
+```
+
+### Data Input
+
+```{r ocurrence data import}
+#Import formatted occurrence data (alldata; RData file created by LarsenShirey_dataFormatting.Rmd)
+load("data/occurrences.RData")
+
+```
+<h4> New code 11/25/2020: day of year reconciliation</h4>
+<p>Until today, we had assumed that the "SuccDay" values were a consistent index for day of year. However, we had not documented our initial spot-checking of altitudes. While identifying GBIF records for documented sopt-checking, we found some inconsistencies in the SuccDay value. Here we identify how "SuccDay" was calculated.</p>
+
+```{r SuccDay review}
+#DOES SUCCDAY MATCH DOY?
+library(lubridate)
+alldata<-na.omit(alldata)
+checkdays<-alldata %>%
+  mutate(doy=yday(as.Date(paste(year,month,day, sep="-"), "%Y-%m-%d")), 
+         daydiff=SuccDay-doy, fricday=(month-1)*30+day) %>%
+  select(name,day,month,year,SuccDay,doy,daydiff,fricday)
+#summary(checkdays)
+table(checkdays$fricday-checkdays$SuccDay)
+ggplot(data=checkdays, aes(y=daydiff, x=doy, color=as.factor(month))) + geom_jitter()
+
+#we'd prefer to use calendar day
+alldata<-alldata %>%mutate(doy=yday(as.Date(paste(year,month,day, sep="-"),"%Y-%m-%d")))
+
+```
+
+### Data exploration 1
+Now we assign region, reconcile names that don't match between the data file and results files provided in the original supplement, and filter the Fric dataset to remove first day of the month records to obtain the dataset used in Fric et al.
+```{r  species names & regions}
+summary(alldata)
+
+##Fric et al identifies datasets by region (N. America, Europe), but the data file does not include this information. We label data by region using longitude:
+## visualize data density by longitude
+hist(alldata$decimalLongitude, main="Data density by Longitude") 
+#We label everything East of -40 as Europe, the rest as N. America 
+alldata<-alldata %>% 
+  mutate(region=ifelse(decimalLongitude>=(-40),"Europe","N. America"))
+
+#We expect 100 species names, based on the manuscript.
+length(unique(alldata$name))
+#What are the names in the dataset?
+data.names<-sort(unique(alldata$name))
+#Which of these names shows up in the results?
+result.names<-na.omit(read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~latitude", range="A3:A113"))
+resultnames<-(strsplit(result.names$Species, " "))
+result.names<-NULL
+for(i in 1:length(resultnames)) {
+  result.names<-c(result.names,paste(resultnames[[i]][1],resultnames[[i]][2],sep=" "))
+}
+which(data.names%in%result.names)
+names_1<-data.names[which(!data.names%in%result.names)]
+names_2<-result.names[which(!result.names%in%data.names)]
+
+# We can link the following results names to similar data names
+nmatch<-c(3,14,13,12,9,16,1,7)
+
+#Of the remaining 8 names, Incisalia augustinus should be combined with Callophrys augustinus, Lycaeides idas should be combined with Plebejus idas, Maculinea arion should be combined with Phengaris arion. It is unclear if any others should be combined. 
+nmatch<-c(nmatch,8,10:11)
+name_changes<-as.data.frame(cbind(result.name=c(names_2,sort(unique(result.names))[c(26,90,86)]),data.name=c(names_1[nmatch])))
+print(name_changes)
+
+write.csv(name_changes, file="data/name_changes.csv")
+# this file can now be used for correcting names in the main file
+
+for(namei in 1:nrow(name_changes)) {
+  alldata$name[alldata$name==name_changes$data.name[namei]]<-name_changes$result.name[namei]
+}
+write.csv(alldata, file="data/all_data_formatted.csv")
+
+fricdata<-alldata %>% filter(alldata$name %in% result.names)
+rm(name_changes, resultnames, result.names, data.names, namei, names_1, names_2, nmatch)
+
+#Fric et al removed all 1st of month observations. 
+fricdata<-filter(fricdata, day!=1)
+
+summary(fricdata)
+#Save formatted and filtered ocurrence data used by Fric et al. 
+save(fricdata,file="data/occurrences_FricAnalysis.RData")
+
+
+```
+
+### Data exploration: altitude (elevation)
+<p>(We defer to the Fric et al use of "altitude" for clarity)</p>
+Early on in data exploration we were concerned with the range of altitude values in the data. 
+One aspect of our data exploration for altitude involved examining outliers and spot-checking specific occurrence records in GBIF, which were either below 0m or in the top quartile of altitudes. Looking at these records led us to understand that 
+<ul>
+<li>(1) GIS coordinates had often been assigned by placename, or were otherwise inaccurate, and </li><li>(2) altitudes obtained by using the Google API to extract altitude for coordinates did not provide reliable altitudes for the underlying occurrences.</li></ul>
+Here we examine broad patterns and specific outlier cases.
+```{r data exploration: altitude}
+#basic range & frequency in data
+summary(fricdata$alt)
+hist(fricdata$alt)
+#how many records below 0?
+print(paste(nrow(filter(fricdata,alt<0)),"records below sea level represent", round(nrow(filter(fricdata,alt<0))/nrow(fricdata)*100,2),"percent of all ocurrence records. We examined lat/long for many of these records and all examined locations were in bodies of water.",sep=" "))
+#how many records are above 500m?
+print(paste(nrow(filter(fricdata,alt>500)),"records above 500m represent", round(nrow(filter(fricdata,alt>500))/nrow(fricdata)*100,2),"percent of all ocurrence records. We examined lat/long and location for a small subset of high altitude records and found vague place names had been used for geolocation.",sep=" "))
+
+#How many in the 0-500m range
+print(paste(nrow(filter(fricdata,between(alt,0,500))),"records  within 0-500m represent", round(nrow(filter(fricdata,between(alt,0,500)))/nrow(fricdata)*100,2),"percent of all ocurrence records. For reanalysis, we can constrain data to these records with minimal impact on data density. ",sep=" "))
+
+altdata<-fricdata %>% mutate(alt.grp=floor(alt/50))  %>%
+  group_by(alt.grp, rndLat) %>% tally()
+# Heatmap 
+ggplot(altdata, aes(rndLat, alt.grp, fill= log(n))) + 
+  geom_tile() + labs(x="Latitudinal Band", y="Altitude band:floor(altitude/50)") + 
+  xlim(20,80) + ylim(0,80)
+
+```
+<p>Outliers appear to be a problem with altitude. Reviewing GBIF records, this appears to be primarily due to the assumption by Fric et al. that the GIS coordinates are precise and that the google API would provide accurate and reliable altitude metrics. Based on the records we spot-checked, when GBIF includes elevation, the values do not match those used in the analysis.</p>
+A few examples including the lowest and highest alt records, as well as some additional records selected arbitrarily from the extreme quantiles of altitude:
+<ul>
+<li> 1953 Anthocharis sara record (row.index 166; altitude -525.96m) is from https://www.gbif.org/occurrence/1039154960; geocoordinates were assigned via vertnet in 2015. These coordinates are located in the ocean. 
+The GBIF record traces to 
+https://collections.peabody.yale.edu/search/Record/YPM-ENT-729028
+which simply gives a locality of "North America; USA; California; Los Angeles County; Rolling Hills".
+Rolling Hills, CA is ~10km east of the given lat/long according to our estimation using googlemaps. </li>
+<li> 1991 Parnassius smintheus record (row.index 38; altitude 4048m) is from 
+https://www.gbif.org/occurrence/1039027733 (which gives elevation of 3810m).
+The GBIF record traces to 
+https://collections.peabody.yale.edu/search/Record/YPM-ENT-430824
+which gives a locality of "North America; USA; Colorado; Summit County; Loveland Pass, 3810 m". The actual collection altitude is provided by the source, and is different than that used in the analysis.</li>
+<li> 1918 Euphydryas chalcedona record (row.index 139; altitude 4305m) is the highest record in the data. It's from 
+https://www.gbif.org/occurrence/1039181223.
+The GBIF record traces to 
+https://collections.peabody.yale.edu/search/Record/YPM-ENT-819202
+which gives a locality of "North America; USA; California; Siskiyou County; Mount Shasta" There is a city named Mount Shasta, CA that incorporated in 1905 that is at elevation 1100m and the peak of Mount Shasta is 4320. It is unclear whether the locality refers to the mountain or to the city; either way it is unlikely that an altitude so close to the peak of the mountain is the best choice for this specimen.</li>
+</ul>
+So far those examples are all North America - does this problem exist in Europe too? 
+<ul>
+<li> A Lycaena hippothoe record from 1995 (row.index 2160; altitude 3274m) is from
+https://www.gbif.org/occurrence/2570253925 which lists an inferred elevation of 2000m.</li>
+<li> A Lycaena virgaureae record from 2002 (row.index 4501; altitude -85.8m) appears to match https://www.gbif.org/occurrence/173651704 which is located in the Gulf of Bothnia, though GBIF assigns an elevation of 0m. Considering the lat/long are (65,23) most likely those coordinates are imprecise.</li>
+</ul>
+
+### Altitude ~ Latitude collinearity
+Fric et al. used regression of residuals for corrected analyses. Regression of residuals is not recommended, particularly if there could be collinearity among explanatory variables. We examined the collinearity between altitude and latitude, which would indicate the regression of residuals analysis would produce biased parameter estimates.
+```{r collinearity}
+#Additional issues with altitude
+#Given the use of regression of residuals, we were concerned that collinearity among independent variables could have led to biased results.
+
+#How many datasets have significant collinearity between altitude and latitude?
+templms<-NULL
+datasets<-fricdata %>% group_by(name, region)  %>% tally()
+for (spi in 1:nrow(datasets)) {
+  tempdata<-fricdata %>% filter(name==datasets$name[spi],region==datasets$region[spi])
+  spilm<-summary(lm(rndLat~alt, data=tempdata))
+  templms<-rbind(templms,c(nrow(tempdata), spilm$coefficients[2,1],  spilm$coefficients[2,4], spilm$r.squared))
+}
+templms<-as.data.frame(templms)
+names(templms)<-c("n","coef","pval","r2")
+hist(templms$coef)
+summary(templms)
+
+round(nrow(filter(templms,pval<0.05))/nrow(templms),2)
+#How many datasets have significant collinearity
+print(paste(nrow(filter(templms,pval<0.05)),"datasets have significant collinearity, representing", round(nrow(filter(templms,pval<0.05))/nrow(templms)*100,1),"percent of all datasets. For datasets with significant collinearity, the mean coefficient is",round(mean(templms$coef[templms$pval<0.05]),3),"(which translates to a slope of", round(1/mean(templms$coef[templms$pval<0.05]),0),"meters per degree latitude) and mean r-squared is",round(mean(templms$r2[templms$pval<0.05]),3)," - therefore regression of residuals is likely producing bias parameters.",sep=" "))
+
+```
+
+### Data exploration: data density
+- In Fric et al. (2020), datasets were analysed with as few as 15 ocurrence records.
+<br>
+- We examine the prevalence of singleton ocurrences, when just one ocurrence was available in a latitudinal band.
+<br>
+
+```{r data density 1}
+lat.summary1<-fricdata %>%
+  group_by(name, region, rndLat) %>%
+  summarize(lat.samplesize=n(),singleton=ifelse(lat.samplesize==1,1,0),dur=max(SuccDay)-min(SuccDay))
+lat.summary2<-lat.summary1 %>%
+  group_by(name,region) %>%
+  summarize(samplesize=sum(lat.samplesize),latspan=max(rndLat)-min(rndLat),nlats=length(unique(rndLat)),n.singletons=sum(singleton),prop.singletons=n.singletons/nlats)
+summary(lat.summary2)
+#Visualize range of sample sizes
+hist(lat.summary2$samplesize, main="Sample size distribution")
+#look at the lower end of sample sizes, where most datasets are
+hist(lat.summary2$samplesize[lat.summary2$samplesize<1000], main="Sample size distribution up to 1k records")
+nrow(lat.summary2 %>% filter(samplesize<100))
+print(paste(nrow(lat.summary2 %>% filter(samplesize<100)),"datasets have less than 100 ocurrence records."))
+
+
+ggplot(data=lat.summary2, aes(x=nlats, y=latspan, color=region)) + geom_point() + theme_classic() + 
+  labs(x="# latitudinal bands", y="latitudinal span")
+ggplot(data=lat.summary2, aes(x=nlats, y=prop.singletons, color=region)) + geom_point() + theme_classic() + 
+  labs(x="# latitudinal bands", y="proportion of latitudinal bands with 1 record")
+
+``` 
+
+### Data exploration: year
+As expected, most data are quite recent. 
+ By selecting the min and max day of year per latitudinal band as onset & termination, the authors vastly decrease their sample size and remove most of the variation along the year and altitude axes
+<p>We arbitrarily selected two species, one with a low sample size and one with a large sample size, to visualize.
+```{r explore year axis, echo=F, message=F, warning=F}
+
+yrdata<-fricdata%>% group_by(year, rndLat) %>% tally()
+# Heatmap 
+peakp1<-ggplot(yrdata, aes(year, rndLat, fill= log(n))) + 
+  geom_tile() + xlim(1840,2020) + ylim(20,80) + ylab("Latitudinal band")
+
+#Onset heatmap
+onsetdata<-fricdata%>% group_by(name, region, rndLat) %>% filter(SuccDay==min(SuccDay)) %>% select(name, region, rndLat, year, SuccDay)
+onsetp1<-ggplot(onsetdata, aes(year, rndLat, fill= SuccDay)) + 
+  geom_tile() + xlim(1840,2020) + ylim(20,80) + ylab("Latitudinal band")
+termdata<-fricdata%>% group_by(name, region, rndLat) %>% filter(SuccDay==max(SuccDay)) %>% select(name, region, rndLat, year, SuccDay)
+termp1<-ggplot(termdata, aes(year, rndLat, fill= SuccDay)) + 
+  geom_tile() + ylab("Latitudinal band")
+grid.arrange(peakp1,termp1,onsetp1, top="Onset & Termination")
+
+## Let's look at 2 species as examples
+#Agriades glandon (only in N. America)
+agdata<-fricdata %>% filter(name=="Agriades glandon") %>% group_by(year, rndLat) %>% tally()
+# Heatmap 
+peakp1<-ggplot(agdata, aes(year, rndLat, fill= n)) + xlim(min(agdata$year),max(agdata$year)) + 
+  geom_tile()  + ylab("Latitudinal band") + ggtitle('A. glandon')
+
+#Onset heatmap
+ag1<-fricdata%>% filter(name=="Agriades glandon")%>% group_by(name, region, rndLat) %>% filter(SuccDay==min(SuccDay)) %>% select(name, region, rndLat, year, SuccDay)
+onsetp1<-ggplot(ag1, aes(year, rndLat, fill= SuccDay)) + 
+  geom_tile()  + labs(y="Latitudinal band", x="Year", fill="Onset", title="Onset values for A. glandon") + xlim(min(agdata$year),max(agdata$year)) 
+ag2<-fricdata%>% filter(name=="Agriades glandon")%>% group_by(name, region, rndLat) %>% filter(SuccDay==max(SuccDay)) %>% select(name, region, rndLat, year, SuccDay)
+termp1<-ggplot(ag2, aes(year, rndLat, fill= SuccDay)) + 
+  geom_tile() + labs("Latitudinal band", x="Year", fill="Term.", title="Termination values for A. glandon") + xlim(min(agdata$year),max(agdata$year))
+#grid.arrange(peakp1,termp1,onsetp1)
+
+#Anthocharis cardamines = only in Europe
+acdata<-fricdata %>% filter(name=="Anthocharis cardamines") %>% group_by(year, rndLat) %>% tally()
+# Heatmap 
+peakp2<-ggplot(acdata, aes(year, rndLat, fill= log(n))) + xlim(1880,max(acdata$year)) + 
+  geom_tile()  + ylab("Latitudinal band") + ggtitle('A. cardamines')
+
+#Onset heatmap
+ac1<-fricdata%>% filter(name=="Anthocharis cardamines")%>% group_by(name, region, rndLat) %>% filter(SuccDay==min(SuccDay)) %>% select(name, region, rndLat, year, SuccDay)
+onsetp2<-ggplot(ac1, aes(year, rndLat, fill= SuccDay)) + 
+  geom_tile()  + labs(y="Latitudinal band",x="Year",fill="Onset", title="Onset values for A. cardamines") + xlim(1880,max(acdata$year)) 
+ac2<-fricdata%>% filter(name=="Anthocharis cardamines")%>% group_by(name, region, rndLat) %>% filter(SuccDay==max(SuccDay)) %>% select(name, region, rndLat, year, SuccDay)
+termp2<-ggplot(ac2, aes(year, rndLat, fill= SuccDay)) + 
+  geom_tile() + labs(y="Latitudinal band",x="Year",fill="Term.", title="Termination values for A. cardamines") + xlim(1880,max(acdata$year)) 
+#grid.arrange(peakp1,termp1,onsetp1)
+grid.arrange(peakp1,peakp2,termp1,termp2,onsetp1,onsetp2, nrow=3)
+
+rm(ag1,ag2,ac1,ac2)
+yrdata<-fricdata%>% group_by(year, rndLat, name, region) %>% add_count() %>% summarize(MinSD=min(SuccDay), MaxSD=max(SuccDay), n=length(n)) 
+
+yrdata1<-yrdata %>%group_by(year, rndLat) %>% summarize(meanmin=mean(MinSD, na.rm=T),meanmax=mean(MaxSD,na.rm=T), nrec=mean(n, na.rm=T))
+
+# Heatmap: onset
+onsetp1<-ggplot(yrdata1, aes(year, rndLat, fill= meanmin)) + 
+  geom_tile() + scale_fill_viridis() + 
+  labs(y="Latitudinal band", fill="Mean Onset", title="Mean minimum SuccDay across datasets") + xlim(1800,2020)
+# Heatmap: term
+termp1<-ggplot(yrdata1, aes(year, rndLat, fill= meanmax)) + 
+  scale_fill_viridis() + 
+  geom_tile() + labs(y="Latitudinal band", fill="Mean Term.", title="Mean maximum SuccDay across datasets")+ xlim(1800,2020)
+grid.arrange(termp1,onsetp1)
+
+bylat<-yrdata %>% group_by(rndLat,n) %>% summarize(onset=mean(MinSD),term=mean(MaxSD))
+ggplot(data=bylat, aes(x=n, y=onset, color=rndLat)) + geom_point() + geom_smooth() + scale_color_viridis() + labs(title="Mean onset by number of observations")
+ggplot(data=bylat, aes(x=n, y=term, color=rndLat)) + geom_point() + geom_smooth() + scale_color_viridis() + labs(title="Mean termination by number of observations")
+
+```
+<br>End of File.

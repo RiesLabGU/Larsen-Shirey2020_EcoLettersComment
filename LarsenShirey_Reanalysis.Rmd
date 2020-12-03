@@ -1,0 +1,590 @@
+---
+title: "Fric et al. Re-analysis Code"
+author: "Vaughn Shirey & Elise Larsen"
+date: "Current version 2-Dec-2020; initiated 9-Mar-2020"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#start fresh
+rm(list=ls())
+```
+<h2>*</h2>
+Begin Analysis
+
+This code chunk sets up the workspace and loads necessary packages.  If phest is not already installed, remove comment from install line.
+
+```{r load packages, message=F}
+
+# load libraries
+library(tidyverse)
+library(ggplot2)
+library(ggExtra)
+library(gridExtra)
+#library(devtools); install_github("willpearse/phest")
+library(phest)
+library(readxl)
+library(lubridate)
+
+```
+<h2>*</h2>
+<h3> Data Import and Formatting</h3>
+data.csv file was downloaded from <a href="https://doi.org/10.6084/m9.figshare.9946934">https://doi.org/10.6084/m9.figshare.9946934</a>
+(https://figshare.com/articles/Phenology_responses_of_temperate_butterflies_-_Supplementary_data/9946934)
+
+<p>This cvs file contains the occurrence data used in Fric et al. (2020), which they downloaded from gbif. The file includes separate data tables for each dataset, which have been concatenated into one file. These data tables have the same fields but are not formatted as a single data table; individual datasets were all written into one data file, including headers and row indices in each dataset. This first set of code reformats the data & writes formatted data files. </p>
+
+
+```{r load formatted raw occurrence data table}
+
+load("data/occurrences.RData")
+
+#Fric et al removed all 1st of month observations and removed one species due to late season nests
+fricdata<-filter(alldata, day!=1, name!="Euphydryas aurinia")
+
+summary(fricdata)
+#Save formatted and filtered occurrence data used by Fric et al. 
+save(fricdata,file="data/occurrences_FricAnalysis.RData")
+```
+<h2>*</h2>
+<h3> Data Exploration</h3>
+<p>Data have now been formatted and filtered to mirror the data used by Fric et al. (2020) and stored into the "occur" tibble.</p>
+<p>The following code explores some aspects of the data use in the Fric et al. analysis, but a more complete exploration is in the DataCuration file.<p>
+```{r Data exploration and visualization}
+
+#Tally the number of observations per dataset & calculate how each dataset spans latitude, year, altitude
+spans.summary<-fricdata %>%
+  group_by(name, region) %>%
+  add_count(name="fric_n") %>% ## n. records
+  group_by(name, region, fric_n) %>%
+  summarize(lat_span=(max(rndLat, na.rm=T)-min(rndLat, na.rm=T)), 
+         year_span=(max(year, na.rm=T)-min(year, na.rm=T)),
+         alt_span=round((max(alt, na.rm=T)-min(alt, na.rm=T)),0))
+
+#calculate # latitudes, onsets, terminations, flight curves = 0
+endpt.summary<-fricdata %>%
+  group_by(name, region, rndLat) %>%
+  # count no. records by latitudinal band
+  add_count(name="n_recs") %>% 
+  #filter to onset & offset dates and label onset dates and offset dates
+  filter(SuccDay==min(SuccDay) | SuccDay==max(SuccDay)) %>% 
+  mutate(onset=ifelse(SuccDay==min(SuccDay),1,0),    term=ifelse(SuccDay==max(SuccDay),1,0)) %>%
+  group_by(name, region) %>%
+  #create summary statistics by species & region
+  summarize(n_lat=length(unique(rndLat)), n_onset=sum(onset), n_term=sum(term), n_flightcurve0s=sum(n_recs==1) )
+
+#combine summary tables
+fric.data.summary<-merge(spans.summary, endpt.summary, by=intersect(names(spans.summary), names(endpt.summary)))
+rm(spans.summary)
+summary(fric.data.summary)
+
+```
+<h2>*</h2>
+<h3>Explore data by altitude & latitude</h3> 
+This code chunk explores the spatiotemporal representation in the fric.data dataset.
+<h3> Create Figure 1: Occurrences by altitude & latitude </h3>
+This code outputs Larsen & Shirey Figure 1, which uses the 4 species presented in Fric et al. Figure 1, to demonstrate the spatiotemporal biases as well as the prevalence of flight periods with a duration of 0 days.
+
+```{r exploring -altitude + latitude- creating figure 1, fig.height = 6, fig.width = 10}
+summary(fricdata$alt)
+#hist(fricdata$alt)
+summary(fricdata$decimalLatitude)
+#hist(fricdata$decimalLatitude)
+##Create Figure 1
+#species list
+fric.datasets<-fricdata %>% group_by(name, region) %>% tally()
+
+fig1sp<-c("Agriades glandon","Glaucopsyche lygdamus","Hesperia comma","Parnassius smintheus")
+
+#Filter data to these species
+fig1data<-fricdata %>%
+  filter(name %in% fig1sp)  
+
+#Get onset & termination dates (SuccDay)
+f1.pheno.data<-fig1data %>%
+  group_by(name, region, rndLat) %>%
+  mutate(onset=min(SuccDay), term=max(SuccDay), fp=term-onset, singles=ifelse(length(SuccDay)==1,1,0))
+
+f1.pheno.data2<-f1.pheno.data %>%
+  filter(SuccDay==onset | SuccDay==term)
+
+#A list to store plot panels
+tempplot<-list()
+fig1panels<-list()
+
+tags<-c("A","B","C","D")
+
+#Create Panels
+for(i in 1:2) {
+  #paneltitle<-paste(fig1sp[i],"N. America")
+  tempplot[[i]] <- ggplot(filter(f1.pheno.data, name==fig1sp[i], region=="N. America"), aes(x=rndLat, y=SuccDay, color=as.factor(singles))) +
+    theme_bw() + 
+    theme(legend.position="none", plot.margin = margin(1,1,1,1, "in")) + 
+    geom_segment(data=filter(f1.pheno.data2, name==fig1sp[i], region=="N. America"), aes(x=rndLat, y=onset, xend=rndLat, yend=term)) + 
+    geom_point(aes(color=as.factor(singles))) +
+    scale_color_manual(values=c("black","red")) + 
+    xlim(min(f1.pheno.data$rndLat),max(f1.pheno.data$rndLat)) + ylim(min(f1.pheno.data$SuccDay),max(f1.pheno.data$SuccDay)) +
+    labs(x="Latitudinal Band", y="Day of Year (DOY)", title="") + geom_text(x=min(f1.pheno.data$rndLat), y=max(f1.pheno.data$SuccDay), label=tags[i])
+  # with marginal histograms
+  fig1panels[[i]] <- ggMarginal(tempplot[[i]], type="histogram") 
+  }
+
+i<-3 #H. comma panel in Fric et al. is from Europe
+#paneltitle<-paste(fig1sp[i],"Europe")
+  tempplot[[i]] <- ggplot(filter(f1.pheno.data, name==fig1sp[i], region=="Europe"), aes(x=rndLat, y=SuccDay, color=as.factor(singles))) +
+    theme_bw() + 
+    theme(legend.position="none", plot.margin = margin(1,1,1,1, "in")) + 
+    geom_segment(data=filter(f1.pheno.data2, name==fig1sp[i], region=="Europe"), aes(x=rndLat, y=onset, xend=rndLat, yend=term)) + 
+    geom_point(aes(color=as.factor(singles))) +  
+    scale_color_manual(values=c("black","red")) +
+    xlim(min(f1.pheno.data$rndLat),max(f1.pheno.data$rndLat)) + ylim(min(f1.pheno.data$SuccDay),max(f1.pheno.data$SuccDay)) +
+    labs(x="Latitudinal Band", y="Day of Year (DOY)", title="") + geom_text(x=min(f1.pheno.data$rndLat), y=max(f1.pheno.data$SuccDay), label=tags[i])
+  
+  # with marginal histogram
+  fig1panels[[i]] <- ggMarginal(tempplot[[i]], type="histogram") 
+  
+##### Figure 1d  2020-07-29 update uses YEAR and DAY to mirror Fric et al.
+i<-4
+#paneltitle<-paste(fig1sp[i],"N. America")
+tempplot[[i]]<- ggplot(filter(f1.pheno.data, name==fig1sp[i], region=="N. America"), aes(x=year, y=SuccDay, fill=decimalLatitude)) +
+  geom_point(shape=3) + 
+  theme_bw() + 
+  theme(legend.position="none", plot.margin = margin(1,1,1,1, "in")) + 
+  geom_point(data=filter(f1.pheno.data2, name==fig1sp[i], region=="N. America"), aes(x=year, y=onset, fill=decimalLatitude), shape=24) + 
+  geom_point(data=filter(f1.pheno.data, name==fig1sp[i], region=="N. America"), aes(x=year, y=term, fill=decimalLatitude), shape=25) + 
+  scale_fill_gradient(low="azure1", high="black") + 
+  geom_point(data=filter(f1.pheno.data2, name==fig1sp[i], region=="N. America", singles==1), aes(x=year, y=SuccDay), color="red", shape=16) +
+  xlim(min(f1.pheno.data$year),max(f1.pheno.data$year)) + ylim(min(f1.pheno.data$SuccDay),max(f1.pheno.data$SuccDay)) +
+  labs(x="Year", y="Day of Year (DOY)", title="") + geom_text(x=min(f1.pheno.data$year), y=max(f1.pheno.data$SuccDay), label=tags[i])
+
+# with marginal histogram
+fig1panels[[i]]  <- ggMarginal(tempplot[[i]], type="histogram")
+
+grid.arrange(grobs=fig1panels[c(1:4)], nrow=2, ncol=2, top="Visualization of data used in Fric et al. for \n (A) Agriades glandon      (B)Glaucopsyche lygdamus \n (C)Hesperia comma      (D)Parnassius smintheus")
+
+#Used to create figure 1 pdf
+#pdf_filename<-("outputs/Larsen&Shirey2020_FinalFig1.pdf")
+#ggsave(pdf_filename, arrangeGrob(grobs=fig1panels[ds1], nrow=2, ncol=2), width=6, height=6, units="in", scale=1,dpi=600)
+```
+<h2>*</h2>
+<h3>Data curation</h3> 
+<p>Data have now been formatted, identified by region, and summarized.</p>
+<p>The following code chunk applies the filters used in the Larsen & Shirey reanalysis and calculates summary data density statistics for all species present in Fric's results to output to Supplemental Table 1.</p>
+
+<p> Our reanalysis excludes datasets along two axes - data density, and voltinism. This code examines data along the data density axis. Unlike Fric et al., we include first day of the month records. We curate raw occurrence data with the following filters prior to estimating phenometrics:</p> 
+<ul>
+<li>1 - remove Euphydryas aurinia (as Fric et al. did)
+<li>2 - altitude in [0m,500m]</li>
+<li>3 - DOY in (60,330) which corresponds to start of march to late november</li>
+<li>4 - 10 or more records when data is grouped by species, region, year, and latitudinal band </li>
+</ul>
+```{r data density for 105 datasets}
+#Summarize data availability for Larsen & Shirey re-analysis
+#Now, filter data for altitude & for cases with 10 or more records by species-region-year-latitude
+all.datasets<-alldata %>% group_by(name, region) %>% tally()
+new.data.summary<-alldata %>%
+  filter(between(alt,0,500), name!="Euphydryas aurinia", month %in% c(3:11)) %>%
+  # calculate data availability by species, region, latitude & year
+  group_by(name, region, rndLat, year) %>% 
+  add_count(name="group_n") %>% ## n. observations per group
+  filter(group_n>=10) %>% ### filter by 10 or more observations in group
+  # calculate reanalysis statistics by species & region
+  group_by(name, region) %>%
+  add_count(name="curated_n_obs") %>%  
+  group_by(name, region, curated_n_obs) %>%
+  #calculate summary statistics applying data filters
+  summarize(curated_n_lat=length(unique(rndLat)),  curated_n_fcurve=length(unique(paste(rndLat,year))), 
+            curated_lat_span=(max(rndLat, na.rm=T)-min(rndLat, na.rm=T)), 
+            curated_year_span=(max(year, na.rm=T)-min(year, na.rm=T)),
+            curated_alt_span=round((max(alt, na.rm=T)-min(alt, na.rm=T)),0))
+
+#combine summary tables
+supptable1<-merge(fric.data.summary, new.data.summary, by=intersect(names(fric.data.summary), names(new.data.summary)), all.x=T)
+head(supptable1)
+summary(supptable1)
+
+#output summary table to csv file
+#write_csv(supptable1, "Larsen&Shirey_stats_supp_table1.csv")
+rm(fric.data.summary, new.data.summary, endpt.summary)
+```
+<h2>*</h2>
+<h3>Data curation for reanalysis</h3> 
+<p>This code filters occurrence data for reanalysis by voltinism and data density, and visualizes some differences between datasets curated for the original analysis and this reanalysis. We only include datasets with sufficient data for calculating phenometrics at 3 or more distinct latitudinal bands, so that a linear model can be applied.</p>
+
+```{r voltinism and reanalysis data filter}
+#FILTER DATA BY VOLTINISM
+
+#get species list without evidence of multiple generations
+#Euphydryas aurinia is not included in the voltinism file
+voltindata<-read_csv("data/voltinism.csv")
+voltindata<-na.omit(voltindata[,c(1:8)])
+voltindata<-voltindata %>% select(name=name_resultsfile,region,Voltinism)
+multi<-c("Bivoltine", "Multivoltine","Sometimes bivoltine","Possible bivoltinism in some subsp.","Unconfirmed reports of second brood")
+univoltine<-filter(voltindata, !Voltinism %in% multi)
+rm(voltindata, multi)
+
+#filter occurrence dataset to these species
+reanalysis.data<-merge(alldata, univoltine, by=intersect(names(alldata),names(univoltine)))
+
+#filter data by altitude and data density
+reanalysis.data<-reanalysis.data %>%
+  filter(between(alt,0,500), month %in% c(3:11)) %>%
+  # calculate data availability by species, region, latitude & year
+  group_by(name, region, rndLat, year) %>% 
+  add_count(name="group_n") %>% ## n. observations per group
+  filter(group_n>=10) %>% #only groups with at least 10 observations
+  group_by(name, region) %>% #group by "dataset"
+  mutate(nlat=length(unique(rndLat))) %>% #count how many distinct latitudinal bands included
+  filter(nlat>=3) # need at least 3 latitudinal bands
+
+#visualize some differences
+plotcompar<-list()
+plotcompar[[1]]<-ggplot(data=fricdata, aes(x=region, y=alt) ) +
+  geom_boxplot(outlier.colour="red", outlier.shape=16, outlier.size=2, notch=FALSE) + ggtitle(label="Original dataset altitudes")
+
+plotcompar[[2]]<-ggplot(data=reanalysis.data, aes(x=region, y=alt) ) +
+  geom_boxplot(outlier.colour="red", outlier.shape=16, outlier.size=2, notch=FALSE) + ggtitle(label="Reanalysis dataset altitudes") + ylim(min(fricdata$alt),max(fricdata$alt))
+
+plotcompar[[3]]<-ggplot(data=fricdata, aes(x=region, y=rndLat) ) +
+  geom_boxplot(outlier.colour="red", outlier.shape=16, outlier.size=2, notch=FALSE) + ggtitle(label="Original dataset latitudes")
+
+plotcompar[[4]]<-ggplot(data=reanalysis.data, aes(x=region, y=rndLat) ) +
+  geom_boxplot(outlier.colour="red", outlier.shape=16, outlier.size=2, notch=FALSE) + ggtitle(label="Reanalysis dataset latitudes") + ylim(min(fricdata$rndLat), max(fricdata$rndLat))
+
+plotcompar[[5]]<-ggplot(data=filter(fricdata, !is.na(year)), aes(x=region, y=year) ) +
+  geom_boxplot(outlier.colour="red", outlier.shape=16, outlier.size=2, notch=FALSE) + ggtitle(label="Original dataset years")
+
+plotcompar[[6]]<-ggplot(data=reanalysis.data, aes(x=region, y=year) ) +
+  geom_boxplot(outlier.colour="red", outlier.shape=16, outlier.size=2, notch=FALSE) + ggtitle(label="Reanalysis dataset years") + ylim(min(fricdata$year, na.rm=T), max(fricdata$year, na.rm=T))
+
+grid.arrange(grobs=plotcompar[c(1:6)], nrow=3)
+
+```
+<h2>*</h2>
+<h3>Estimate phenometrics using phest</h3> 
+<p>This chunk of code estimates onset and offset phenometrics by species-region-year-latitudinal_band using curated data. </p>
+<p>We use the phest package to estimate onset and offset of flight periods based on occurrence data, when at least 10 observations exist for a species-region-year-latitudinal_band unit. The phest package applies a weibull distribution. Please note that this chunk does take a few minutes to run. Also, warnings are automatically generated by "phest" when a correction is applied to the phenometric estimate. Additionally, "phest" throws a warning for CI estimation. We have explored these warnings and don't believe that there is any problem continuing with the estimates produced; therefore we have suppressed the warning messages here.</p>
+<p>We have added an easy way to select whether to estimate the phenometrics directly or to load them from a saved .RData file. To bypass the weibull estimation, set calc.new.metrics to FALSE. To run the weibull estimation, set calc.new.metrics to TRUE.</p>
+
+```{r estimate phenometrics for reanalysis}
+rm(plotcompar)
+
+#If you want to just load the previously estimated phenometrics, set this to FALSE.
+calc.new.metrics<-TRUE
+#we'd prefer to use calendar day
+reanalysis.data<-reanalysis.data %>%mutate(doy=yday(as.Date(paste(year,month,day, sep="-"),"%Y-%m-%d")))
+
+
+datasets.ls<-reanalysis.data %>% group_by(name, region) %>% tally()
+
+#For each species & region, calculate phenometrics
+if(calc.new.metrics) {
+  pheno.est<-data.frame(name=character(0),region=character(0),year=integer(0),rndLat=integer(0),onset.est=numeric(0),onset.low=numeric(0),onset.high=numeric(0),offset.est=numeric(0),offset.low=numeric(0),offset.high=numeric(0))
+  
+  for(rowi in 1:nrow(datasets.ls)){ # for each unique dataset
+    namei<-datasets.ls$name[rowi]
+    regi<-datasets.ls$region[rowi]
+    index <- 1 # create/reset an indexer
+    pheno.estimates <- list() # create/refresh a blank list per group
+    rowi.data<-filter(reanalysis.data, name==namei, region==regi)
+    for(yr in unique(rowi.data$year)){ # and each unique year
+      for(lat in unique(rowi.data$rndLat)){ # and each unique latitude
+        temp <- filter(rowi.data, rndLat==lat, year==yr) # filter the occurrence data for each group
+      
+        if(nrow(temp) > 9){ # if there are at least 10 occurrences, then...
+          estimates <- c(namei, regi, yr, lat, nrow(temp), 
+                       suppressWarnings(weib.limit(temp$doy, upper=FALSE, alpha=0.05)),  suppressWarnings(weib.limit(temp$doy, upper=TRUE, alpha=0.05))) # calculate estimates for the group: onset, offset
+          pheno.estimates[[index]] <- estimates # shuttle those into a list
+          index <- index+1
+        } #end if enough occurrences
+      } #end lat
+    } #end yr
+    df <- data.frame(matrix(unlist(pheno.estimates), nrow=length(pheno.estimates), byrow=TRUE),stringsAsFactors=FALSE)
+    names(df)<-c("name","region","year","rndLat","n","onset.est","onset.low","onset.high","offset.est","offset.low","offset.high")
+    pheno.est<-rbind(pheno.est, df)
+  } 
+  for(coli in 3:11) {
+    pheno.est[,coli]<-as.numeric(pheno.est[,coli])
+  }
+
+  #Format & store data
+  pheno.data<-pheno.est %>%
+    mutate(unit=paste(name, rndLat, year,sep="-")) %>%
+    select(unit,onset.est,offset.est,name,region,rndLat,year,n) %>%
+    mutate(onset=round(onset.est,0),term=round(offset.est,0))
+  pheno.data<-na.omit(pheno.data)
+  #Weibull estimator doesn't bound so
+  #We bounded all onset & termination metrics y [60,330], limiting flight periods to March - November
+  pheno.data$onset[pheno.data$onset<60]<-60
+  pheno.data$term[pheno.data$term>330]<-330
+
+  save(pheno.data, file="data/phenometrics.RData")
+} else {
+  #If we want to skip phest and phenometric estimation:
+  load("data/phenometrics.RData") 
+}
+```
+<h2>*</h2>
+<h3>Statistical models for phenometrics</h3>
+<p>This code uses estimated onset and offset phenometrics in linear models to examine phenological patterns with latitude and year. Other statistical models may be more appropriate for a de novo analysis, but here we want our statistical model to parallel the Fric et al. model in intention, but using multiple regression instead of residual regression.</p>
+
+```{r statistical reanalysis of phenological patterns}
+
+datasets<-pheno.data %>%
+  group_by(name, region) %>%
+  tally()
+pheno.data<-na.omit(pheno.data)
+fric_FP<-fricdata %>%
+  group_by(name,region,rndLat) %>%
+  summarize(onset=min(SuccDay),term=max(SuccDay),FP=term-onset)
+verify.order<-pheno.data %>%
+  mutate(FP=term-onset) 
+summary(verify.order$FP)
+print(paste("Across datasets our estimated flight periods average ", round(mean(verify.order$FP, na.rm=T))," days, and range from ", min(verify.order$FP, na.rm=T), " days to ",max(verify.order$FP, na.rm=T), " days. In the original analysis, the average flight period duration was ", round(mean(fric_FP$FP, na.rm=T)), " days, with a range of ",min(fric_FP$FP, na.rm=T),"-", max(fric_FP$FP, na.rm=T), " days.",sep=""))
+rm(verify.order)
+
+#Loop through datasets, run model for phenology by species & region, and store LM parameters
+onsetpheno<-list()
+termpheno<-list()
+onset1<-NULL
+term1<-NULL
+axes<-NULL
+
+for(rowi in 1:nrow(datasets)) {
+  pheno.rowi<-pheno.data %>%
+    filter(name==datasets$name[rowi], region==datasets$region[rowi]) 
+#estimate model params for onset
+  onset.lm<-summary(lm(onset~rndLat+year, data=pheno.rowi))$coefficients #estimate model params for termination
+  term.lm<-summary(lm(term~rndLat+year, data=pheno.rowi))$coefficients   
+#store 
+  onsetpheno[[rowi]]<-onset.lm  
+  termpheno[[rowi]]<-term.lm  
+
+    #onset
+  temponset<-matrix(unlist(onset.lm[c(2:3),]), ncol=4, byrow=F)
+  onset1<-rbind(onset1, temponset)
+  axes<-c(axes,row.names(onset.lm)[c(2:3)])
+#termination
+  tempterm<-matrix(unlist(term.lm[c(2:3),]), ncol=4, byrow=F)
+  term1<-rbind(term1, tempterm)
+  rm(pheno.rowi,onset.lm,term.lm,temponset,tempterm)
+  }
+
+#Create results dataframes: onset
+onset1<-as.data.frame(onset1)
+colnames(onset1)<-c("param.est","param.se","param.t","param.p")
+onset1$param<-axes
+onset1$metric<-"onset"
+onset1$name<-rep(datasets$name, each=2)
+onset1$region<-rep(datasets$region, each=2)
+onset1$n<-rep(datasets$n, each=2)
+
+#Create results dataframes: termination
+term1<-as.data.frame(term1)
+colnames(term1)<-c("param.est","param.se","param.t","param.p")
+term1$param<-axes
+term1$metric<-"termination"
+term1$name<-rep(datasets$name, each=2)
+term1$region<-rep(datasets$region, each=2)
+term1$n<-rep(datasets$n, each=2)
+
+
+result<-bind_rows(onset1, term1)
+result<-result %>%
+  mutate(response=ifelse(param.p<0.05,ifelse(param.est>0,1,-1),0))
+
+#NOT in manuscript but exploratory: Using only coefficients and significance without confidence intervals, what phenological patterns are present?
+slopediff<-NULL
+for(spi in unique(result$name)) {
+  d.start<-ifelse(filter(result,param=="rndLat",name==spi,metric=="onset")$response>0,"later","same")
+  d.duration<- ifelse(filter(term1,param=="rndLat",name==spi)$param.est-filter(onset1,param=="rndLat",name==spi)$param.est<0,"shorter",ifelse(filter(term1,param=="rndLat",name==spi)$param.est-filter(onset1,param=="rndLat",name==spi)$param.est>0,"longer","same"))
+  slopediff<-c(slopediff, paste(d.start,d.duration,sep="."))
+}
+table(slopediff)
+```
+<h2>*</h2>
+<h3>Compare statistical results to Fric et al.</h3>
+<p>This code uses model outputs and compares them to the results of the Fric et al. analysis. It outputs Figure 2.</p>
+```{r result comparison  & figure 2, fig.height = 5, fig.width = 10}
+##Results and visualizations
+
+##Import Fric results: 
+load("data/Fric_results.RData")
+datasets$set<-paste(datasets$name,datasets$region,sep="-")
+fric.results$reanalyzed<-0
+fric.results$reanalyzed[c(match(datasets$set,fric.results$set),match(datasets$set,fric.results$set)+105)]<-1
+
+#Model 1 = Fric Direct regression, all species
+fric1<-fric.results %>%
+  filter(model=="lat") %>%
+  mutate(modelnum=1, modelname='SR-105') %>%
+  select(name,region,onset.coef,onset.response,term.coef,term.response,modelnum,modelname)
+
+#Model 3 = Fric Direct regression, reanalyzed species
+fric3<-fric.results %>%
+  filter(model=="lat", reanalyzed==1) %>%
+  mutate(modelnum=3, modelname='SR-22') %>%
+  select(name,region,onset.coef,onset.response,term.coef,term.response,modelnum,modelname)
+
+#Model 2 = Fric residual regression, all species
+fric2<-fric.results %>%
+  filter(model=="corr") %>%
+  mutate(modelnum=2, modelname='RR-105') %>%
+  select(name,region,onset.coef,onset.response,term.coef,term.response,modelnum,modelname)
+
+#Model 4 = Fric residual regression, reanalyzed species
+fric4<-fric.results %>%
+  filter(model=="corr", reanalyzed==1) %>%
+  mutate(modelnum=4, modelname='RR-22') %>%
+  select(name,region,onset.coef,onset.response,term.coef,term.response,modelnum,modelname)
+
+#Model 5 = Reanalysis multiple regression
+temp<-pivot_wider(filter(result, param=="rndLat"), id_cols =c(name, region),names_from=metric,values_from=c(param.est,param.p, response) )
+print("The reanalysis result table has fields:")
+names(result)
+print("From which the following fields are created using pivot_wider:")
+names(temp)
+#Here we select the fields we need and name them to correspond to the Fric result tables
+result5<-temp %>%
+  select(name, region, onset.coef=param.est_onset, onset.response=response_onset, term.coef=param.est_termination, term.response=response_termination) %>%
+  mutate(modelnum=5, modelname="New")
+rm(temp)
+
+#Combine all results into 1 data frame
+result.compar<-as.data.frame(rbind(fric1,fric2,fric3,fric4,result5))
+#result.compar$modelnum<-as.factor(result.compar$modelnum)
+result.compar$s1<-1
+##Create Figure 2
+colorscheme<-c("blue", "darkgray", "darkgreen")
+ts<-8
+ar=2/3
+ar1=1
+#modelnames<-c("SR105","RR105","SR22","RR22","New")
+#Panels A, D: compare coefficients
+#Panel A: Onset coefficients
+onset.sp<-ggplot(data=filter(result.compar, as.numeric(modelnum)>3), aes(x=name, y=onset.coef, shape=as.factor(modelnum), fill=as.factor(onset.response))) + 
+  geom_point(color="black") +
+  scale_shape_manual(values=c(22,21)) +
+  scale_fill_manual(values=c("white","black")) + 
+  geom_hline(yintercept=0) + 
+  scale_y_continuous(breaks=seq(-8,8,2)) + 
+  labs(x="", y="Latitude coefficient") + coord_flip() + 
+  theme_light()  + 
+  theme(legend.position = "none", axis.title=element_text(size=ts-1),  axis.text=element_text(size=ts-2), aspect.ratio=ar1, plot.margin = margin(2, 2, 2, 2, unit = "pt"))
+#onset.sp
+#Panel D: Termination coefficients
+term.sp<-ggplot(data=filter(result.compar, as.numeric(modelnum)>3), aes(x=name, y=term.coef, shape=as.factor(modelnum), fill=as.factor(term.response))) + 
+  geom_point(color="black") +
+  scale_shape_manual(values=c(22,21)) +
+  scale_fill_manual(values=c("black","white","black")) + 
+  geom_hline(yintercept=0) + 
+  scale_y_continuous(breaks=seq(-8,8,2)) + 
+  labs(x="", y="Latitude coefficient") + coord_flip() + 
+  theme_light()  + 
+  theme(legend.position = "none", axis.title=element_text(size=ts-1),  axis.text=element_text(size=ts-2), aspect.ratio=ar1, plot.margin = margin(2, 2, 2, 2, unit = "pt"))
+#term.sp
+
+#Panels B, E: response boxplots
+#Pandel B: Onset
+onset.c<-ggplot(data=result.compar, aes(x=reorder(modelname,modelnum), y=onset.coef)) + 
+  geom_boxplot(aes(group=reorder(modelname,modelnum))) + 
+  geom_jitter(data=filter(result.compar),  aes(x=reorder(modelname,modelnum), y=onset.coef, color=as.factor(onset.response)), width=0.2, height=0, shape=17) +
+  labs(x="", y="Onset ~ Latitude coefficient") + 
+  scale_color_manual(values=colorscheme) + 
+  theme_light() + 
+  theme(legend.position = "none", axis.title=element_text(size=ts-1, face="plain"), axis.text=element_text(size=ts-1, angle=30, hjust=0.8, face="bold"), aspect.ratio=ar, plot.margin = margin(2, 2, 2, 2, unit = "pt"))
+#onset.c
+#Panel E: termination
+term.c<-ggplot(data=result.compar, aes(x=reorder(modelname,modelnum), y=term.coef)) + 
+  geom_boxplot(aes(group=reorder(modelname,modelnum))) + 
+  geom_jitter(data=filter(result.compar),  aes(x=reorder(modelname,modelnum), y=term.coef, color=as.factor(term.response)), width=0.2, height=0, shape=17) +
+  labs(x="", y="Termination ~ Latitude coefficient") + 
+  scale_color_manual(values=colorscheme) + 
+  theme_light() + 
+  theme(legend.position = "none", axis.title=element_text(size=ts-1, face="plain"), axis.text=element_text(size=ts-1, angle=30, hjust=0.8, face="bold"), aspect.ratio=ar, plot.margin = margin(2, 2, 2, 2, unit = "pt"))
+#Panels C, F: stacked barplots
+#Panel c: Onset responses
+onset.st<-ggplot(data=result.compar, aes(x=(reorder(modelname,modelnum)), y=s1, fill=as.factor(onset.response))) + 
+  geom_bar(position=position_stack(reverse=T), stat="identity")  + 
+  scale_fill_manual(values=colorscheme) +
+  labs(x="", y="# species by response sign") + theme_light() + 
+  theme(legend.position = "none", axis.title=element_text(size=ts-1, face="plain"), axis.text=element_text(size=ts-1, angle=30, hjust=0.8, face="bold"), aspect.ratio=ar, plot.margin = margin(2, 2, 2, 2, unit = "pt"))
+
+#Panel F: Termination responses
+term.st<-ggplot(data=result.compar, aes(x=reorder(modelname,modelnum), y=s1, fill=as.factor(term.response))) + 
+  geom_bar(position=position_stack(reverse=T), stat="identity") + 
+  scale_fill_manual(values=colorscheme) +
+  theme_light() + labs(x="", y="# species by response sign") + 
+  theme(legend.position = "none", axis.title=element_text(size=ts-1, face="plain"), axis.text=element_text(size=ts-1, angle=30, hjust=0.8, face="bold"), aspect.ratio=ar, plot.margin = margin(2, 2, 2, 2, unit = "pt")) 
+
+#term.st
+
+
+##Combine panels into Figure 2:
+p1<-onset.sp+labs(tag="A")
+p2<-onset.c+labs(tag="B")
+p3<-onset.st+labs(tag="C")
+p4<-term.sp+labs(tag="D")
+p5<-term.c+labs(tag="E")
+p6<-term.st+labs(tag="F")
+
+#pdf_filename<-("output/LarsenShirey2020_Fig2.pdf")
+grid.arrange(ncol=3, grobs=list(p1, p2, p3, p4, p5, p6),  widths=c(1.2,1,1), bottom="These figures show the difference between the results of our reanalysis ('New') and Fric et al.'s \n results (SR=Single Regression, RR=Regression of Residuals; 105 = all 105 datasets, 22 =  reanalyzed datasets).") 
+#fig2<-grid.arrange(ncol=3, grobs=list(p1, p2, p3, p4, p5, p6), top="\n\n", bottom="\n\n", left="\n\n", right="\n\n", width=10, height=5) 
+#ggsave(pdf_filename, arrangeGrob(fig2, nrow=1), width=10, height=5, scale=1.5, dpi=600,units="in")
+```
+<h2>*</h2>
+<h3>Create statistics for results table (Supplemental Table 2)</h3>
+<p>This code outputs a results table that is a partial Supplemental Table 2 - it is currently missing the 'year' analyses from Fric et al., as our focus is on the latitudinal patterns.</p>
+```{r outputing statistical results table}
+
+#fric.table<-pivot_wider(filter(result, reanalyzed==1), id_cols =c(name, region,),names_from=metric,values_from=c(param.est,param.p, response) )
+
+#Here we are building supplemental table 2 with fields: name_resultsfile, region, phenometric, indep.variable, Fric_singleRegression_Sign, Fric_resid.regress_sign, Reanalysis_sign, Reanalysis_p, Reanalysis_coefficient, Fric_resid.regress_p, Fric_resid.regress_coefficient, Fric_singleRegression_p, Fric_singleRegression_coefficient
+
+table2<-result %>%
+  select(name_resultsfile=name, region, phenometric=metric, indep.variable=param, Reanalysis_sign=response,Reanalysis_p=param.p,Reanalysis_coefficient=param.est)
+table2$indep.variable[table2$indep.variable=="rndLat"]<-"latitude"
+
+#onset SR
+fric.table2a<-fric.results %>%
+  filter(reanalyzed==1, model=="lat") %>%
+  select(name_resultsfile=name, region, Fric_SR_Sign=onset.response, Fric_SR_p=onset.p_mean, Fric_SR_coef=onset.coef) %>%
+  mutate(phenometric="onset", indep.variable="latitude")
+
+#term SR
+fric.table2b<-fric.results %>%
+  filter(reanalyzed==1, model=="lat") %>%
+  select(name_resultsfile=name, region, Fric_SR_Sign=term.response, Fric_SR_p=term.p_mean, Fric_SR_coef=term.coef) %>%
+  mutate(phenometric="termination", indep.variable="latitude")
+
+fric.table2<-rbind(fric.table2a,fric.table2b)
+
+table2<-merge(table2,fric.table2,by=intersect(names(table2),names(fric.table2)), all.x=T, all.y=T)  
+
+#onset RR
+fric.table2a<-fric.results %>%
+  filter(reanalyzed==1, model=="corr") %>%
+  select(name_resultsfile=name, region, Fric_RR_Sign=onset.response, Fric_RR_p=onset.p_mean, Fric_RR_coef=onset.coef) %>%
+  mutate(phenometric="onset", indep.variable="latitude")
+#term RR
+fric.table2b<-fric.results %>%
+  filter(reanalyzed==1, model=="corr") %>%
+  select(name_resultsfile=name, region, Fric_RR_Sign=term.response, Fric_RR_p=term.p_mean, Fric_RR_coef=term.coef) %>%
+  mutate(phenometric="termination", indep.variable="latitude")
+
+fric.table2<-rbind(fric.table2a,fric.table2b)
+
+table2<-merge(table2,fric.table2,by=intersect(names(table2),names(fric.table2)), all.x=T)  
+
+##This partial supplementary table 2 does not include the year results from Fric.
+#write.csv(table2,file="outputs/supp_table2_part.csv")
+
+```
+
+<p>This is the end of this analysis. Code for Supplemental Figure 1 has been moved to a separate Rmarkdown file. </p>
+
+Author notes - Future updates should:
+<br>Remove variables when we're done with them
+<br>See if we can suppress geom_smooth() messages

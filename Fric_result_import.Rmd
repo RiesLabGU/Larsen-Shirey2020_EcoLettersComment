@@ -1,0 +1,105 @@
+---
+title: "Import Fric et al. results from supplemental tables for comparisons"
+author: "Elise Larsen & Vaughn Shirey"
+date: "12/2/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+<h2>*</h2>
+  <br>Here we import Fric et al. results from supplemental tables
+```{r import from file, echo=FALSE}
+
+##Needed packages:
+library(readxl)
+library(tidyverse)
+
+##Import Fric results: 
+
+#Check order of phenometric results in tables
+#Single regression
+fric.metrics1<-names(read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~latitude", range="A3:Y3"))
+fric.metrics1[grep("e",fric.metrics1)]
+#Corrected regression (Regression of residuals)
+fric.metrics2<-names(read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~latitude|altitude+year", range="A2:Y2"))
+fric.metrics2[grep("e",fric.metrics2)]
+
+# Table is 1 species column and 3 sets of results columns (peak, onset, termination). There are 8 results parameters reported per model. 
+n.metrics<-8
+fric.results.lat<-na.omit(read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~latitude", range="A4:Y113"))
+#nrow(fric.results.lat)
+fric.results.corr<-read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~latitude|altitude+year", range="A3:Y108")
+
+fric.results.lat$model<-"lat"
+fric.results.corr$model<-"corr"
+fric.results<-rbind(fric.results.lat, fric.results.corr)
+
+field.names<-c(names(read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~latitude", range="B4:I4")))
+field.names<-c("species",paste("peak",field.names,sep="."),paste("onset",field.names,sep="."),paste("term",field.names,sep="."),"model")
+
+names(fric.results)<-field.names
+
+#Fields we want to keep for comparison
+fric.results<-fric.results %>%
+  select(species,peak.ResDFMean,onset.p_mean,onset.coef,onset.response,term.p_mean,term.coef,term.response, model)
+
+#standardize names
+fric.results.species<-strsplit(fric.results$species," ")
+result.names<-NULL
+for(i in 1:length(fric.results.species)) {
+  result.names<-c(result.names,paste(fric.results.species[[i]][1],fric.results.species[[i]][2],sep=" "))
+}
+fric.results$name<-result.names
+#verify that names match
+table(order(fric.results$name)-order(fric.results$species))
+#The sort order is the same. Looks good.
+```
+<h2>*</h2>
+<br> Because Fric et al. results are not tagged by region, we add a field for region.
+We match results to region based on relative sample sizes.
+
+```{r identify results by region, echo=FALSE}
+#ID Species names that occur in both regions
+fric.dups<-fric.results %>% group_by(name) %>% tally() %>% filter(n==4)
+rm(fric.results.lat,fric.results.corr,result.names,fric.results.species)
+
+#Get species-region & sample sizes from fric data file
+#load occurrence data
+load('data/occurrences_FricAnalysis.RData')
+#summarize species-region-samplesize
+fricsummary<-fricdata %>% group_by(name,region) %>% tally()
+
+fric.results$region<-fricsummary$region[match(fric.results$name,fricsummary$name)]
+
+#But now we need to correct the ones that are in both regions
+dup.sp1<-fricsummary[duplicated(fricsummary$name) | duplicated(fricsummary$name, fromLast=T),]
+samplediff<-NULL
+for(sp in sort(unique(dup.sp1$name))) {
+  samplediff<-c(samplediff,ifelse(dup.sp1$n[dup.sp1$name==sp & dup.sp1$region=="Europe"]-dup.sp1$n[dup.sp1$name==sp & dup.sp1$region=="N. America"]>0,"Europe","N. America"))
+}
+table(samplediff)
+
+#All Europe sample sizes are bigger so we can use that to ID regions in the Fric results.
+for(sp in sort(unique(dup.sp1$name))) {
+  sizes<-fric.results$peak.ResDFMean[which(fric.results$name==sp)]
+  fric.results$region[fric.results$name==sp & fric.results$peak.ResDFMean==max(sizes)]<-"Europe"
+  fric.results$region[fric.results$name==sp & fric.results$peak.ResDFMean==min(sizes)]<-"N. America"
+}
+
+fric.results$set<-paste(fric.results$name,fric.results$region,sep="-")
+save(fric.results,file="data/fric_results.RData")
+summary(fric.results)
+print("Onset response: single regression")
+table(filter(fric.results,model=="lat")$onset.response)
+print("Termination response: single regression")
+table(filter(fric.results,model=="lat")$term.response)
+print("Onset response: residual regression")
+table(filter(fric.results,model=="corr")$onset.response)
+print("Termination response: residual regression")
+table(filter(fric.results,model=="corr")$term.response)
+```
+<br>The # responses in each group are correct.
+<br>End File.

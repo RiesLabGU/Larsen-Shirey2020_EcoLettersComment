@@ -1,0 +1,281 @@
+---
+title: "Reproduce Fric et al. (2020) analysis"
+author: "E. Larsen & V. Shirey"
+date: "Updated 2-Dec-2020; started Feb-2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+### Recreate original results
+
+We wanted to confirm that we understood correctly the Fric et al. analysis. We attempted to recreate the original Fric et al. analysis. Given time in the future, we may revisit some specific datasets for which our results disagree, but we are able to recreate the results for most models.
+
+```{r reproduce original results}
+
+#Start clean
+rm(list=ls())
+library(tidyverse)
+library(ggplot2)
+library(gridExtra)
+
+#Import fric results (fric.results; RData file created by Fric_result_import.Rmd)
+load("data/fric_results.RData")
+
+#Import formatted occurrence data (alldata; RData file created by LarsenShirey_dataFormatting.Rmd)
+load("data/occurrences.RData")
+fricdata<-alldata
+rm(alldata)
+```
+<br>Now to try the analysis. 
+```{r linear models}
+fricdatasets<-fric.results  %>% 
+  group_by(name, region) %>% tally()
+
+### Can we recreate their analysis?
+regi<-1
+lm.result.diff<-NULL
+for(regi in 1:nrow(fricdatasets)){
+  tempdata<-fricdata %>% filter(name==fricdatasets$name[regi], region==fricdatasets$region[regi])
+  #onset single regression
+  temponset<-tempdata %>% group_by(rndLat) %>% filter(SuccDay==min(SuccDay))
+  temponset<-temponset %>% filter(!is.na(year))
+  onset.sr<-summary(lm(SuccDay~rndLat, data=temponset))$coefficients
+
+  #onset residual regression
+  onset.1<-lm(SuccDay~year, data=temponset)
+  temponset$yrresid<-onset.1$residuals
+  onset.2<-lm(yrresid~alt, data=temponset)
+  temponset$altyrresid<-onset.2$residuals
+  onset.rr<-summary(lm(altyrresid~rndLat, data=temponset))$coefficients
+
+  #termination single regression
+  tempterm<-tempdata %>% group_by(rndLat) %>% filter(SuccDay==max(SuccDay))
+  tempterm<-tempterm %>% filter(!is.na(year)) 
+  term.sr<-summary(lm(SuccDay~rndLat, data=tempterm))$coefficients
+
+  #termination residual regression
+  term.1<-lm(SuccDay~year, data=tempterm)
+  tempterm$yrresid<-term.1$residuals
+  term.2<-lm(yrresid~alt, data=tempterm)
+  tempterm$altyrresid<-term.2$residuals
+  term.rr<-summary(lm(altyrresid~rndLat, data=tempterm))$coefficients
+                                   
+  #filter reported results
+  temp.fric<-fric.results %>% 
+    filter(name==fricdatasets$name[regi], region==fricdatasets$region[regi])                     
+  tempdiff<-tibble(
+    name=tempdata$name[1],
+    region=tempdata$region[1],
+    onset.n=nrow(temponset),
+    onset.src.me = (onset.sr[2,1]),
+    onset.srp.me =  (onset.sr[2,4]), 
+    onset.srR.me =  ifelse(onset.sr[2,4]<0.05,ifelse(onset.sr[2,1]>0,1,-1),0), 
+    onset.src.fric = (filter(temp.fric, model=="lat")$onset.coef ), 
+    onset.srp.fric = (filter(temp.fric, model=="lat")$onset.p_mean ),
+    onset.srR.fric = (filter(temp.fric, model=="lat")$onset.response ),
+    onset.rrc.me = (onset.rr[2,1]),
+    onset.rrp.me = (onset.rr[2,4]),
+    onset.rrR.me =  ifelse(onset.rr[2,4]<0.05,ifelse(onset.rr[2,1]>0,1,-1),0), 
+    onset.rrc.fric=(filter(temp.fric, model=="corr")$onset.coef ), 
+    onset.rrp.fric = (filter(temp.fric, model=="corr")$onset.p_mean ),
+    onset.rrR.fric = (filter(temp.fric, model=="corr")$onset.response ),
+    term.src.me = (term.sr[2,1]),
+    term.srp.me = (term.sr[2,4]),
+    term.srR.me =  ifelse(term.sr[2,4]<0.05,ifelse(term.sr[2,1]>0,1,-1),0), 
+    term.src.fric = (filter(temp.fric, model=="lat")$term.coef ), 
+    term.srp.fric = (filter(temp.fric, model=="lat")$term.p_mean ), 
+    term.srR.fric = (filter(temp.fric, model=="lat")$term.response ),
+    term.rrc.me = (term.rr[2,1]),
+    term.rrp.me = (term.rr[2,4]),
+    term.rrR.me =  ifelse(term.rr[2,4]<0.05,ifelse(term.rr[2,1]>0,1,-1),0), 
+    term.rrc.fric = (filter(temp.fric, model=="corr")$term.coef ),  
+    term.rrp.fric = (filter(temp.fric, model=="corr")$term.p_mean ),
+    term.rrR.fric = (filter(temp.fric, model=="corr")$term.response ) )
+  
+  lm.result.diff<-bind_rows(lm.result.diff,tempdiff)     
+  rm(tempdata, temponset, tempterm, temp.fric, onset.sr, onset.rr, term.sr, term.rr,tempdiff)
+  }
+
+summary(lm.result.diff)
+```
+<br>compare single regression results
+```{r single regression summaries}
+
+#Single regression comparisons
+srplot1<-ggplot(data=lm.result.diff, aes(x=onset.srR.fric, y=onset.srR.me, color=as.factor(onset.srR.me))) + geom_jitter(height=0.3) + labs(title="Onset ~ Lat response", color="Y-resp")+ theme(legend.position = "none")
+srplot2<-ggplot(data=lm.result.diff, aes(x=onset.src.fric, y=onset.src.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="Onset ~ Lat coef")
+srplot3<-ggplot(data=lm.result.diff, aes(x=onset.srp.fric, y=onset.srp.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="Onset ~ Lat pval")
+srplot4<-ggplot(data=lm.result.diff, aes(x=term.srR.fric, y=term.srR.me, color=as.factor(term.srR.me))) + geom_jitter(height=0.3) + labs(title="Term ~ Lat response", color="Y-resp") + theme(legend.position = "none")
+srplot5<-ggplot(data=lm.result.diff, aes(x=term.src.fric, y=term.src.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="Term ~ Lat coef")
+srplot6<-ggplot(data=lm.result.diff, aes(x=term.srp.fric, y=term.srp.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title= "Term ~ Lat pval")
+
+grid.arrange(grobs=list(srplot1,srplot2,srplot3,srplot4,srplot5,srplot6), nrow=2, top="Single Regression Comparison")
+
+failed<-NULL
+ paste("We did not detect the same Onset response as Fric (single reg.) for ",nrow(lm.result.diff %>% filter(onset.srR.me!=onset.srR.fric) )," datasets.",sep="")
+if(nrow(lm.result.diff %>% filter(onset.srR.me!=onset.srR.fric) )>0 ){
+(lm.result.diff %>%  filter(onset.srR.me!=onset.srR.fric) %>%
+  select(name, region, onset.n, onset.src.me, onset.src.fric, onset.srp.me, onset.srp.fric, onset.srR.me, onset.srR.fric))
+}
+failed<-c(failed, which(lm.result.diff$onset.srR.me!=lm.result.diff$onset.srR.fric))
+
+ paste("We did not detect the same Termination response as Fric (single reg.) for ",nrow(lm.result.diff %>% filter(term.srR.me!=term.srR.fric) )," datasets.",sep="")
+if(nrow(lm.result.diff %>% filter(term.srR.me!=term.srR.fric) )>0 ){
+  lm.result.diff %>%  filter(term.srR.me!=term.srR.fric) %>%
+  select(name, region, onset.n, term.src.me, term.src.fric, term.srp.me, term.srp.fric, term.srR.me, term.srR.fric)
+}
+failed<-c(failed, which(lm.result.diff$term.srR.me!=lm.result.diff$term.srR.fric))
+print("Species for which our single regression response results vary:")
+lm.result.diff$name[failed]
+```
+
+<br>compare residual regression results
+```{r residual regression summaries}
+#Residual regerssion comparisons
+rrplot1<-ggplot(data=lm.result.diff, aes(x=onset.rrR.fric, y=onset.rrR.me , color=as.factor(onset.rrR.me))) + geom_jitter(height=0.3) + labs(title="O.resid ~ Lat response", color="Y-Resp") + theme(legend.position = "none")
+rrplot2<-ggplot(data=lm.result.diff, aes(x=onset.rrc.fric, y=onset.rrc.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="O.resid ~ Lat coef")
+rrplot3<-ggplot(data=lm.result.diff, aes(x=onset.rrp.fric, y=onset.rrp.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="O.resid ~ Lat pval")
+rrplot4<-ggplot(data=lm.result.diff, aes(x=term.rrR.fric, y=term.rrR.me, color=as.factor(term.rrR.me))) + geom_jitter(height=0.3) + labs(title="T.resid ~ Lat response", color="Y-resp") + theme(legend.position = "none")
+rrplot5<-ggplot(data=lm.result.diff, aes(x=term.rrc.fric, y=term.rrc.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="T.resid ~ Lat coef")
+rrplot6<-ggplot(data=lm.result.diff, aes(x=term.rrp.fric, y=term.rrp.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title= "T.resid ~ Lat pval")
+
+grid.arrange(grobs=list(rrplot1,rrplot2,rrplot3,rrplot4,rrplot5,rrplot6), nrow=2, top="Residual Regression Comparison")
+failed<-NULL
+ paste("We did not detect the same Onset response as Fric (resid reg.) for ",nrow(lm.result.diff %>% filter(onset.rrR.me!=onset.rrR.fric) )," datasets.",sep="")
+if(nrow(lm.result.diff %>% filter(onset.rrR.me!=onset.rrR.fric) )>0 ){
+lm.result.diff %>%  filter(onset.rrR.me!=onset.rrR.fric) %>%
+  select(name, region, onset.n, onset.rrc.me, onset.rrc.fric, onset.rrp.me, onset.rrp.fric, onset.rrR.me, onset.rrR.fric)
+}
+failed<-c(failed, which(lm.result.diff$onset.rrR.me!=lm.result.diff$onset.rrR.fric))
+
+ paste("We did not detect the same Termination response as Fric (resid reg.) for ",nrow(lm.result.diff %>% filter(term.rrR.me!=term.rrR.fric) )," datasets.",sep="")
+if(nrow(lm.result.diff %>% filter(term.rrR.me!=term.rrR.fric) )>0 ){
+  (lm.result.diff %>%  filter(term.rrR.me!=term.rrR.fric) %>%
+    select(name, region, onset.n, term.rrc.me, term.rrc.fric, term.rrp.me, term.rrp.fric, term.rrR.me, term.rrR.fric))
+}
+failed<-c(failed, which(lm.result.diff$term.rrR.me!=lm.result.diff$term.rrR.fric))
+print("Species for which our residual regression response results vary:")
+lm.result.diff$name[failed]
+```
+
+<h2>*</h2>
+With regard to this mostly successful attempt above, we note: 
+```{r notes}
+
+sp_summary<-fricdata %>%
+  group_by(name, region, rndLat) %>% 
+  filter(name %in% fric.results$name, SuccDay==min(SuccDay) | SuccDay==max(SuccDay)) %>%   
+  mutate(day1=ifelse(day==1,1,0), metric=ifelse(SuccDay==min(SuccDay),"onset","term"))
+sp_1<-sp_summary %>% group_by(name, region, rndLat, metric, SuccDay, day1) %>% tally()
+
+print(paste(nrow(filter(sp_1,n>1, metric=="onset"))," onset dates and ",nrow(filter(sp_1,n>1, metric=="term"))," termination dates have more than one occurrence for the day; we believe that all data points that matched the minimum or maximum SuccDay were included in the original regressions. This affected ",length(unique(sp_1$name[sp_1$n>1]))," species in the original analysis. There is no information in the original paper about how an occurrence record would have been selected when multiple occurrences occur on the onset or termination day; for residual regressions, this matters because the different altitudes and years associated with the occurrence records could change the results.", sep=""))
+
+hist(sp_summary$day, breaks=c(0:31))
+table(sp_summary$day)
+
+print(paste(nrow(filter(sp_1,day1==1, metric=="onset"))," onset dates and ",nrow(filter(sp_1,day1==1, metric=="term"))," termination dates occur on the first day of the month; we believe that these data points were included in the original regressions, despite the methods of the article saying these were filtered out. This affected ",length(unique(sp_1$name[sp_1$day1==1]))," species in the original analysis. We found that when we excluded these dates, an additional 7 responses among our comparisons did not match.", sep=""))
+
+```
+
+<h2>*</h2>
+Our initial attempt
+
+```{r first attempt}
+#load fric results
+load("data/fric_results.RData")
+
+#load occurrence data
+load('data/occurrences_FricAnalysis.RData')
+fricdatasets<-fricdata  %>% 
+  group_by(name, region) %>% tally()
+## NEED TO ADD THIS CODE
+
+### Can I recreate their analysisa?
+regi<-1
+lm.result.diff<-NULL
+for(regi in 1:nrow(fricdatasets)){
+  tempdata<-fricdata %>% filter(name==fricdatasets$name[regi], region==fricdatasets$region[regi])
+  #onset single regression
+  temponset<-tempdata %>% group_by(rndLat) %>% filter(SuccDay==min(SuccDay))
+  onset.sr<-summary(lm(SuccDay~rndLat, data=temponset))$coefficients
+
+  #onset residual regression
+  onset.1<-lm(SuccDay~year, data=temponset)
+  temponset$yrresid<-onset.1$residuals
+  onset.2<-lm(yrresid~alt, data=temponset)
+  temponset$altyrresid<-onset.2$residuals
+  onset.rr<-summary(lm(altyrresid~rndLat, data=temponset))$coefficients
+
+  #termination single regression
+  tempterm<-tempdata %>% group_by(rndLat) %>% filter(SuccDay==max(SuccDay))
+  term.sr<-summary(lm(SuccDay~rndLat, data=tempterm))$coefficients
+
+  #termination residual regression
+  term.1<-lm(SuccDay~alt, data=tempterm)
+  tempterm$altresid<-term.1$residuals
+  term.2<-lm(altresid~year, data=tempterm)
+  tempterm$altyrresid<-term.2$residuals
+  term.rr<-summary(lm(altyrresid~rndLat, data=tempterm))$coefficients
+                                   
+  #filter reported results
+  temp.fric<-fric.results %>% 
+    filter(name==fricdatasets$name[regi], region==fricdatasets$region[regi])                     
+  tempdiff<-tibble(
+  name=temponset$name[1],
+  region=temponset$region[1],
+  onset.n=nrow(temponset),
+  onset.src.me = (onset.sr[2,1]),
+  onset.src.fric = (filter(temp.fric, model=="lat")$onset.coef ), 
+  onset.srp.me =  (onset.sr[2,4]), 
+  onset.srp.fric = (filter(temp.fric, model=="lat")$onset.p_mean ),
+  onset.srR.me =  ifelse(onset.sr[2,4]<0.05,ifelse(onset.sr[2,1]>0,1,-1),0), 
+  onset.srR.fric = (filter(temp.fric, model=="lat")$onset.response ),
+  onset.rrc.me = (onset.rr[2,1]),
+  onset.rrc.fric=(filter(temp.fric, model=="corr")$onset.coef ), 
+  onset.rrp.me = (onset.rr[2,4]),
+  onset.rrp.fric = (filter(temp.fric, model=="corr")$onset.p_mean ),
+  onset.rrR.me =  ifelse(onset.rr[2,4]<0.05,ifelse(onset.rr[2,1]>0,1,-1),0), 
+  onset.rrR.fric = (filter(temp.fric, model=="corr")$onset.response ),
+  term.src.me = (term.sr[2,1]),
+  term.src.fric = (filter(temp.fric, model=="lat")$term.coef ), 
+  term.srp.me = (term.sr[2,4]),
+  term.srp.fric = (filter(temp.fric, model=="lat")$term.p_mean ), 
+  term.srR.me =  ifelse(term.sr[2,4]<0.05,ifelse(term.sr[2,1]>0,1,-1),0), 
+  term.srR.fric = (filter(temp.fric, model=="lat")$term.response ),
+  term.rrc.me = (term.rr[2,1]),
+  term.rrc.fric = (filter(temp.fric, model=="corr")$term.coef ),  
+  term.rrp.me = (term.rr[2,4]),
+  term.rrp.fric = (filter(temp.fric, model=="lat")$term.p_mean ),
+  term.rrR.me =  ifelse(term.rr[2,4]<0.05,ifelse(term.rr[2,1]>0,1,-1),0), 
+  term.rrR.fric = (filter(temp.fric, model=="corr")$term.response ))
+  
+  lm.result.diff<-bind_rows(lm.result.diff,tempdiff)     
+  rm(tempdata, temponset, tempterm, temp.fric, onset.sr, onset.rr, term.sr, term.rr,tempdiff)
+  }
+
+summary(lm.result.diff)
+
+#Single regression comparisons
+srplot1<-ggplot(data=lm.result.diff, aes(x=onset.srR.fric, y=onset.srR.me)) + geom_point() + labs(title="Onset ~ Lat response")
+srplot2<-ggplot(data=lm.result.diff, aes(x=onset.src.fric, y=onset.src.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="Onset ~ Lat coef")
+srplot3<-ggplot(data=lm.result.diff, aes(x=onset.srp.fric, y=onset.srp.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="Onset ~ Lat pval")
+srplot4<-ggplot(data=lm.result.diff, aes(x=term.srR.fric, y=term.srR.me)) + geom_point() + labs(title="Onset ~ Lat response")
+srplot5<-ggplot(data=lm.result.diff, aes(x=term.src.fric, y=term.src.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="Term ~ Lat coef")
+srplot6<-ggplot(data=lm.result.diff, aes(x=term.srp.fric, y=term.srp.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title= "Term ~ Lat pval")
+
+#Residual regerssion comparisons
+rrplot1<-ggplot(data=lm.result.diff, aes(x=onset.rrR.fric, y=onset.rrR.me)) + geom_point() + labs(title="O.resid ~ Lat response")
+rrplot2<-ggplot(data=lm.result.diff, aes(x=onset.rrc.fric, y=onset.rrc.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="O.resid ~ Lat coef")
+rrplot3<-ggplot(data=lm.result.diff, aes(x=onset.rrp.fric, y=onset.rrp.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="O.resid ~ Lat pval")
+rrplot4<-ggplot(data=lm.result.diff, aes(x=term.rrR.fric, y=term.rrR.me)) + geom_point() + labs(title="T.resid ~ Lat response")
+rrplot5<-ggplot(data=lm.result.diff, aes(x=term.rrc.fric, y=term.rrc.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="T.resid ~ Lat coef")
+rrplot6<-ggplot(data=lm.result.diff, aes(x=term.rrp.fric, y=term.rrp.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title= "T.resid ~ Lat pval")
+
+grid.arrange(grobs=list(srplot1,srplot2,srplot3,srplot4,srplot5,srplot6), nrow=2, top="Single Regression Comparison")
+
+grid.arrange(grobs=list(rrplot1,rrplot2,rrplot3,rrplot4,rrplot5,rrplot6), nrow=2, top="Residual Regression Comparison")
+
+```
+<br> End of File.

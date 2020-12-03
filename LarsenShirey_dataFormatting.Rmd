@@ -1,0 +1,106 @@
+---
+title: "Fric et al. Data formatting"
+author: "Vaughn Shirey & Elise Larsen"
+date: "Current version 2-Dec-2020; initiated 9-Mar-2020"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#start fresh
+rm(list=ls())
+```
+<h2>*</h2>
+
+```{r load packages, message=F}
+
+# load libraries
+library(tidyverse)
+library(ggplot2)
+library(readxl)
+library(lubridate)
+
+```
+<h2>*</h2>
+<h3> Data Import and Formatting</h3>
+data.csv file was downloaded from <a href="https://doi.org/10.6084/m9.figshare.9946934">https://doi.org/10.6084/m9.figshare.9946934</a>
+(https://figshare.com/articles/Phenology_responses_of_temperate_butterflies_-_Supplementary_data/9946934)
+
+<p>This cvs file contains the occurrence data used in Fric et al. (2020), which they downloaded from gbif. The file includes separate data tables for each dataset, which have been concatenated into one file. These data tables have the same fields but are not formatted as a single data table; individual datasets were all written into one data file, including headers and row indices in each dataset. This first set of code reformats the data & writes formatted data files. </p>
+
+
+```{r format raw occurrence data table}
+all.data <- readLines("fric_supplements/data.csv")
+
+#identify header rows
+all.header.rows<-grep("decimalLongitude", all.data)
+
+#check headers for consistency
+uniqueheaders<-unique(all.data[all.header.rows])
+
+# 2 versions! -> Get row numbers for "header 1"
+header.rows1<-grep(uniqueheaders[1], all.data)
+#Get row numbers for "header 2" 
+header.rows2<-setdiff(all.header.rows, header.rows1)
+
+#Create row identifiers: 
+#0 is a header row, 1 is format 1 data, 2 is format 2 data
+j<-rep(0,length(all.data))
+for (i in all.header.rows) {
+  #set index to the next header if it's not the last header; otherwise set to end of datafile + 1
+  if(i<max(all.header.rows)) {
+    next_index<-min(all.header.rows[all.header.rows>i])
+  }else { next_index<-length(all.data)+1 }
+
+  #for data between header rows, set row index
+  j[(i+1):(next_index-1)]<-ifelse(i%in%header.rows1,1,2)
+}
+
+#need to add a row index to the header text for new data files
+newheader1<-paste('"row.index\",' ,uniqueheaders[1], sep="")
+newheader2<-paste('"row.index\",' ,uniqueheaders[2], sep="")
+
+#write data file
+formatteddatafile1<-file("data/fric_data_header_1.txt")
+writeLines(c(newheader1,all.data[which(j==1)]), formatteddatafile1)
+close(formatteddatafile1)
+
+formatteddatafile2<-file("data/fric_data_header_2.txt")
+writeLines(c(newheader2,all.data[which(j==2)]), formatteddatafile2)
+close(formatteddatafile2)
+rm(list=ls())
+
+#read back in the formatted data
+data1<-read_csv("data/fric_data_header_1.txt")
+data2<-read_csv("data/fric_data_header_2.txt")
+paste( nrow(data1), "records in format 1;", nrow(data2), "records in format 2")
+
+alldata<-rbind(data1,data2)
+rm(data1,data2)
+
+##Fric et al includes different species names in results tables than found in data table. In the data curation folder, we match the data names to the results names and create the name_changes.csv file. Here we change names to match results tables:
+name_changes<-read_csv("data/name_changes.csv")
+table(alldata$name[which(alldata$name %in% name_changes$data.name)])
+
+for(namei in 1:nrow(name_changes)) {
+  alldata$name[alldata$name==name_changes$data.name[namei]]<-name_changes$result.name[namei]
+}
+
+rm(name_changes)
+
+##Fric et al identifies datasets by region (N. America, Europe), but the data file does not include this information. We label data by region using longitude:
+## visualize data density by longitude
+#hist(alldata$decimalLongitude, main="Data density by Longitude") 
+#We label everything East of -40 as Europe, the rest as N. America 
+alldata<-alldata %>% 
+  mutate(region=ifelse(decimalLongitude>=(-40),"Europe","N. America"))
+
+#Fric et al removed all 1st of month observations and removed one species due to late season nests
+fricdata<-filter(alldata, day!=1, name!="Euphydryas aurinia")
+
+summary(fricdata)
+#Save formatted and filtered occurrence data used by Fric et al. 
+save(alldata,file="data/occurrences.RData")
+save(fricdata,file="data/occurrences_FricAnalysis.RData")
+```
+<br>End of File.
