@@ -1,7 +1,7 @@
 ---
 title: "Fric et al. Re-analysis Code"
 author: "Vaughn Shirey & Elise Larsen"
-date: "Current version 2-Dec-2020; initiated 9-Mar-2020"
+date: "Current version 3-Dec-2020; initiated 9-Mar-2020"
 output: html_document
 ---
 ```{r setup, include=FALSE}
@@ -40,7 +40,7 @@ data.csv file was downloaded from <a href="https://doi.org/10.6084/m9.figshare.9
 
 load("data/occurrences.RData")
 
-#Fric et al removed all 1st of month observations and removed one species due to late season nests
+#Fric et al methods stated they removed one species due to late season nests and removed all day 1 of the month records.
 fricdata<-filter(alldata, day!=1, name!="Euphydryas aurinia")
 
 summary(fricdata)
@@ -54,7 +54,10 @@ save(fricdata,file="data/occurrences_FricAnalysis.RData")
 ```{r Data exploration and visualization}
 
 #Tally the number of observations per dataset & calculate how each dataset spans latitude, year, altitude
-spans.summary<-fricdata %>%
+#Here we remove species E. aurinia from alldata, and use that, as our reproduction of the original analysis suggested that day 1 of the month occurrences were not actually removed, except for January.
+
+alldata<-alldata %>%   filter(name!="Euphydryas aurinia")
+spans.summary<-alldata %>%
   group_by(name, region) %>%
   add_count(name="fric_n") %>% ## n. records
   group_by(name, region, fric_n) %>%
@@ -63,7 +66,7 @@ spans.summary<-fricdata %>%
          alt_span=round((max(alt, na.rm=T)-min(alt, na.rm=T)),0))
 
 #calculate # latitudes, onsets, terminations, flight curves = 0
-endpt.summary<-fricdata %>%
+endpt.summary<-alldata %>%
   group_by(name, region, rndLat) %>%
   # count no. records by latitudinal band
   add_count(name="n_recs") %>% 
@@ -87,18 +90,18 @@ This code chunk explores the spatiotemporal representation in the fric.data data
 This code outputs Larsen & Shirey Figure 1, which uses the 4 species presented in Fric et al. Figure 1, to demonstrate the spatiotemporal biases as well as the prevalence of flight periods with a duration of 0 days.
 
 ```{r exploring -altitude + latitude- creating figure 1, fig.height = 6, fig.width = 10}
-summary(fricdata$alt)
+summary(alldata$alt)
 #hist(fricdata$alt)
-summary(fricdata$decimalLatitude)
+summary(alldata$decimalLatitude)
 #hist(fricdata$decimalLatitude)
 ##Create Figure 1
 #species list
-fric.datasets<-fricdata %>% group_by(name, region) %>% tally()
+fric.datasets<-alldata %>% group_by(name, region) %>% tally()
 
 fig1sp<-c("Agriades glandon","Glaucopsyche lygdamus","Hesperia comma","Parnassius smintheus")
 
 #Filter data to these species
-fig1data<-fricdata %>%
+fig1data<-alldata %>%
   filter(name %in% fig1sp)  
 
 #Get onset & termination dates (SuccDay)
@@ -152,7 +155,7 @@ tempplot[[i]]<- ggplot(filter(f1.pheno.data, name==fig1sp[i], region=="N. Americ
   theme_bw() + 
   theme(legend.position="none", plot.margin = margin(1,1,1,1, "in")) + 
   geom_point(data=filter(f1.pheno.data2, name==fig1sp[i], region=="N. America"), aes(x=year, y=onset, fill=decimalLatitude), shape=24) + 
-  geom_point(data=filter(f1.pheno.data, name==fig1sp[i], region=="N. America"), aes(x=year, y=term, fill=decimalLatitude), shape=25) + 
+  geom_point(data=filter(f1.pheno.data2, name==fig1sp[i], region=="N. America"), aes(x=year, y=term, fill=decimalLatitude), shape=25) + 
   scale_fill_gradient(low="azure1", high="black") + 
   geom_point(data=filter(f1.pheno.data2, name==fig1sp[i], region=="N. America", singles==1), aes(x=year, y=SuccDay), color="red", shape=16) +
   xlim(min(f1.pheno.data$year),max(f1.pheno.data$year)) + ylim(min(f1.pheno.data$SuccDay),max(f1.pheno.data$SuccDay)) +
@@ -164,8 +167,8 @@ fig1panels[[i]]  <- ggMarginal(tempplot[[i]], type="histogram")
 grid.arrange(grobs=fig1panels[c(1:4)], nrow=2, ncol=2, top="Visualization of data used in Fric et al. for \n (A) Agriades glandon      (B)Glaucopsyche lygdamus \n (C)Hesperia comma      (D)Parnassius smintheus")
 
 #Used to create figure 1 pdf
-#pdf_filename<-("outputs/Larsen&Shirey2020_FinalFig1.pdf")
-#ggsave(pdf_filename, arrangeGrob(grobs=fig1panels[ds1], nrow=2, ncol=2), width=6, height=6, units="in", scale=1,dpi=600)
+#pdf_filename<-("outputs/LarsenShirey_Fig1.pdf")
+#ggsave(pdf_filename, grid.arrange(grobs=fig1panels[c(1:4)], nrow=2, ncol=2, top=" \n ", bottom=" \n ", left=" \n  \n ", right=" \n \n " ), width=8, height=8, units="in", scale=1,dpi=600)
 ```
 <h2>*</h2>
 <h3>Data curation</h3> 
@@ -220,8 +223,8 @@ rm(fric.data.summary, new.data.summary, endpt.summary)
 voltindata<-read_csv("data/voltinism.csv")
 voltindata<-na.omit(voltindata[,c(1:8)])
 voltindata<-voltindata %>% select(name=name_resultsfile,region,Voltinism)
-multi<-c("Bivoltine", "Multivoltine","Sometimes bivoltine","Possible bivoltinism in some subsp.","Unconfirmed reports of second brood")
-univoltine<-filter(voltindata, !Voltinism %in% multi)
+multi<-c("Univoltine","Univoltine, sometimes biennial","Not determined")
+univoltine<-filter(voltindata, Voltinism %in% multi)
 rm(voltindata, multi)
 
 #filter occurrence dataset to these species
@@ -271,8 +274,8 @@ grid.arrange(grobs=plotcompar[c(1:6)], nrow=3)
 rm(plotcompar)
 
 #If you want to just load the previously estimated phenometrics, set this to FALSE.
-calc.new.metrics<-TRUE
-#we'd prefer to use calendar day
+calc.new.metrics<-FALSE
+#"SuccDay" = 30*(month-1)+day. We'd prefer to use calendar day
 reanalysis.data<-reanalysis.data %>%mutate(doy=yday(as.Date(paste(year,month,day, sep="-"),"%Y-%m-%d")))
 
 
@@ -316,6 +319,8 @@ if(calc.new.metrics) {
   pheno.data<-na.omit(pheno.data)
   #Weibull estimator doesn't bound so
   #We bounded all onset & termination metrics y [60,330], limiting flight periods to March - November
+  nrow(pheno.data[pheno.data$onset<60,])
+  nrow(pheno.data[pheno.data$term>330,])
   pheno.data$onset[pheno.data$onset<60]<-60
   pheno.data$term[pheno.data$term>330]<-330
 
@@ -471,7 +476,7 @@ onset.sp<-ggplot(data=filter(result.compar, as.numeric(modelnum)>3), aes(x=name,
   scale_y_continuous(breaks=seq(-8,8,2)) + 
   labs(x="", y="Latitude coefficient") + coord_flip() + 
   theme_light()  + 
-  theme(legend.position = "none", axis.title=element_text(size=ts-1),  axis.text=element_text(size=ts-2), aspect.ratio=ar1, plot.margin = margin(2, 2, 2, 2, unit = "pt"))
+  theme(legend.position = "none", axis.title=element_text(size=ts-1),  axis.text=element_text(size=ts-2), aspect.ratio=ar1, plot.margin = margin(0.25, 0.25, 0.25, 0.25, unit = "cm"))
 #onset.sp
 #Panel D: Termination coefficients
 term.sp<-ggplot(data=filter(result.compar, as.numeric(modelnum)>3), aes(x=name, y=term.coef, shape=as.factor(modelnum), fill=as.factor(term.response))) + 
@@ -482,7 +487,7 @@ term.sp<-ggplot(data=filter(result.compar, as.numeric(modelnum)>3), aes(x=name, 
   scale_y_continuous(breaks=seq(-8,8,2)) + 
   labs(x="", y="Latitude coefficient") + coord_flip() + 
   theme_light()  + 
-  theme(legend.position = "none", axis.title=element_text(size=ts-1),  axis.text=element_text(size=ts-2), aspect.ratio=ar1, plot.margin = margin(2, 2, 2, 2, unit = "pt"))
+  theme(legend.position = "none", axis.title=element_text(size=ts-1),  axis.text=element_text(size=ts-2), aspect.ratio=ar1, plot.margin = margin(0.25, 0.25, 0.25, 0.25, unit = "cm"))
 #term.sp
 
 #Panels B, E: response boxplots
@@ -493,7 +498,7 @@ onset.c<-ggplot(data=result.compar, aes(x=reorder(modelname,modelnum), y=onset.c
   labs(x="", y="Onset ~ Latitude coefficient") + 
   scale_color_manual(values=colorscheme) + 
   theme_light() + 
-  theme(legend.position = "none", axis.title=element_text(size=ts-1, face="plain"), axis.text=element_text(size=ts-1, angle=30, hjust=0.8, face="bold"), aspect.ratio=ar, plot.margin = margin(2, 2, 2, 2, unit = "pt"))
+  theme(legend.position = "none", axis.title=element_text(size=ts-1, face="plain"), axis.text=element_text(size=ts-1, angle=30, hjust=0.8, face="bold"), aspect.ratio=ar, plot.margin = margin(0.25, 0.25, 0.25, 0.25, unit = "cm"))
 #onset.c
 #Panel E: termination
 term.c<-ggplot(data=result.compar, aes(x=reorder(modelname,modelnum), y=term.coef)) + 
@@ -502,21 +507,21 @@ term.c<-ggplot(data=result.compar, aes(x=reorder(modelname,modelnum), y=term.coe
   labs(x="", y="Termination ~ Latitude coefficient") + 
   scale_color_manual(values=colorscheme) + 
   theme_light() + 
-  theme(legend.position = "none", axis.title=element_text(size=ts-1, face="plain"), axis.text=element_text(size=ts-1, angle=30, hjust=0.8, face="bold"), aspect.ratio=ar, plot.margin = margin(2, 2, 2, 2, unit = "pt"))
+  theme(legend.position = "none", axis.title=element_text(size=ts-1, face="plain"), axis.text=element_text(size=ts-1, angle=30, hjust=0.8, face="bold"), aspect.ratio=ar, plot.margin = margin(0.25, 0.25, 0.25, 0.25, unit = "cm"))
 #Panels C, F: stacked barplots
 #Panel c: Onset responses
 onset.st<-ggplot(data=result.compar, aes(x=(reorder(modelname,modelnum)), y=s1, fill=as.factor(onset.response))) + 
   geom_bar(position=position_stack(reverse=T), stat="identity")  + 
   scale_fill_manual(values=colorscheme) +
   labs(x="", y="# species by response sign") + theme_light() + 
-  theme(legend.position = "none", axis.title=element_text(size=ts-1, face="plain"), axis.text=element_text(size=ts-1, angle=30, hjust=0.8, face="bold"), aspect.ratio=ar, plot.margin = margin(2, 2, 2, 2, unit = "pt"))
+  theme(legend.position = "none", axis.title=element_text(size=ts-1, face="plain"), axis.text=element_text(size=ts-1, angle=30, hjust=0.8, face="bold"), aspect.ratio=ar, plot.margin = margin(0.25, 0.25, 0.25, 0.25, unit = "cm"))
 
 #Panel F: Termination responses
 term.st<-ggplot(data=result.compar, aes(x=reorder(modelname,modelnum), y=s1, fill=as.factor(term.response))) + 
   geom_bar(position=position_stack(reverse=T), stat="identity") + 
   scale_fill_manual(values=colorscheme) +
   theme_light() + labs(x="", y="# species by response sign") + 
-  theme(legend.position = "none", axis.title=element_text(size=ts-1, face="plain"), axis.text=element_text(size=ts-1, angle=30, hjust=0.8, face="bold"), aspect.ratio=ar, plot.margin = margin(2, 2, 2, 2, unit = "pt")) 
+  theme(legend.position = "none", axis.title=element_text(size=ts-1, face="plain"), axis.text=element_text(size=ts-1, angle=30, hjust=0.8, face="bold"), aspect.ratio=ar, plot.margin = margin(0.25, 0.25, 0.25, 0.25, unit = "cm")) 
 
 #term.st
 
@@ -529,10 +534,10 @@ p4<-term.sp+labs(tag="D")
 p5<-term.c+labs(tag="E")
 p6<-term.st+labs(tag="F")
 
-#pdf_filename<-("output/LarsenShirey2020_Fig2.pdf")
+#pdf_filename2<-("outputs/LarsenShirey_Fig2.pdf")
 grid.arrange(ncol=3, grobs=list(p1, p2, p3, p4, p5, p6),  widths=c(1.2,1,1), bottom="These figures show the difference between the results of our reanalysis ('New') and Fric et al.'s \n results (SR=Single Regression, RR=Regression of Residuals; 105 = all 105 datasets, 22 =  reanalyzed datasets).") 
-#fig2<-grid.arrange(ncol=3, grobs=list(p1, p2, p3, p4, p5, p6), top="\n\n", bottom="\n\n", left="\n\n", right="\n\n", width=10, height=5) 
-#ggsave(pdf_filename, arrangeGrob(fig2, nrow=1), width=10, height=5, scale=1.5, dpi=600,units="in")
+#fig2<-grid.arrange(ncol=3, grobs=list(p1, p2, p3, p4, p5, p6), widths=c(1.05,1,1), top="\n\n", bottom="\n\n", left="\n\n", right="\n\n", width=10, height=5) 
+#ggsave(pdf_filename2, arrangeGrob(fig2, nrow=1), width=10, height=6, scale=1, dpi=600,units="in")
 ```
 <h2>*</h2>
 <h3>Create statistics for results table (Supplemental Table 2)</h3>

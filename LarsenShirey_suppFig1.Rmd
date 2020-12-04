@@ -1,7 +1,7 @@
 ---
 title: "Supplemental Figure 1"
 author: "Larsen & Shirey"
-date: "Updated 2-Dec-2020; separated from reanalysis 25-Nov-2020"
+date: "Updated 3-Dec-2020; separated from reanalysis 25-Nov-2020"
 output: html_document
 ---
 
@@ -17,7 +17,7 @@ library(tidyverse)
 library(ggplot2)
 library(ggExtra)
 library(gridExtra)
-
+library(ggpubr)
 load("data/occurrences_FricAnalysis.RData")
 load("data/phenometrics.RData")
 reanalysis<-read_csv("outputs/supp_table2_part.csv")
@@ -233,7 +233,7 @@ We hope to add a live link to View Supplemental Figure 1 pdf.
 #This code chunk adds the caption information for Supplemental Figure 1 and creates PDF output.
 
 ### ADD TITLE & CAPTION TEXT to SF1
-#text1<-paste("Larsen and Shirey 2020 Supplemental Figure 1")
+text1<-paste("Larsen and Shirey 2020 Supplemental Figure 1")
 #text2<-paste("These panels display the data and regression results for onset and termination across models. Each row of 3 panels represents a",
 #            "species in the re-analysis. In the left column, all raw occurrence data are shown as plus symbols' while onset and termination  ",
 #            "are shown as diamonds; red points indicate individual observations used as both onset and termination. Fric et al.’s single     ",
@@ -259,11 +259,11 @@ We hope to add a live link to View Supplemental Figure 1 pdf.
 
 ###  SUPP FIG 1  
 #p0<-grid.arrange(tg,th,ts,nrow = 3,layout_matrix = lay, heights=c(1,2,3))
-#SF1<-grid.arrange(p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11, nrow=12)
 
-#pdf("outputs/Larsen_Shirey2020_SuppFigure1.pdf", width=11, height=8.5)
-#p0; p1; p2; p3; p4; p5; p6; p7; p8; p9; p10; p11
-#dev.off()
+#l<-list(p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11)
+
+#sf1_filename<-"outputs/LarsenShirey_SuppFig1.pdf"
+#ggsave(sf1_filename, marrangeGrob(grobs = l, nrow=1, ncol=1), width=11, #height=8.5)
 ```
 <br>
 End of file. 

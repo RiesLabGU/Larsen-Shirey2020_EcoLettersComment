@@ -129,6 +129,8 @@ if(nrow(lm.result.diff %>% filter(term.srR.me!=term.srR.fric) )>0 ){
 failed<-c(failed, which(lm.result.diff$term.srR.me!=lm.result.diff$term.srR.fric))
 print("Species for which our single regression response results vary:")
 lm.result.diff$name[failed]
+
+lm.result.diff[which(lm.result.diff$term.srR.me!=lm.result.diff$term.srR.fric),]
 ```
 
 <br>compare residual regression results
@@ -199,6 +201,8 @@ for(regi in 1:nrow(fricdatasets)){
   tempdata<-fricdata %>% filter(name==fricdatasets$name[regi], region==fricdatasets$region[regi])
   #onset single regression
   temponset<-tempdata %>% group_by(rndLat) %>% filter(SuccDay==min(SuccDay))
+  temponset<-filter(temponset, !is.na(year))
+  
   onset.sr<-summary(lm(SuccDay~rndLat, data=temponset))$coefficients
 
   #onset residual regression
@@ -210,6 +214,7 @@ for(regi in 1:nrow(fricdatasets)){
 
   #termination single regression
   tempterm<-tempdata %>% group_by(rndLat) %>% filter(SuccDay==max(SuccDay))
+  tempterm<-filter(tempterm, !is.na(year))
   term.sr<-summary(lm(SuccDay~rndLat, data=tempterm))$coefficients
 
   #termination residual regression
