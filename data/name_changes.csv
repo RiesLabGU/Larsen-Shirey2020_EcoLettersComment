@@ -1,12 +1,17 @@
-"","result.name","data.name"
-"1","Callophrys augustinus","Erynnis tages"
-"2","Plebejus idas",NA
-"3","Phengaris arion",NA
-"4","Callophrys augustinus",NA
-"5","Plebejus idas",NA
-"6","Phengaris arion",NA
-"7","Callophrys augustinus","Boloria selene"
-"8","Plebejus idas",NA
-"9","Phengaris arion",NA
-"10","Callophrys augustinus",NA
-"11","Plebejus idas",NA
+"","data.name","genus","spep","result.name"
+"2","Agriades optilete","Agriades","optilete","Vacciniina optilete"
+"24","Boloria selene","Boloria","selene",NA
+"30","Callophrys polios","Callophrys","polios","Callophrys polia"
+"43","Cupido amyntula","Cupido","amyntula",NA
+"52","Erynnis tages","Erynnis","tages",NA
+"56","Euphydryas aurinia","Euphydryas","aurinia",""
+"59","Fabriciana adippe","Fabriciana","adippe","Argynnis adippe"
+"63","Incisalia augustinus","Incisalia","augustinus","Callophrys augustinus"
+"66","Lethe eurydice","Lethe","eurydice","Satyrodes eurydice"
+"71","Lycaeides idas","Lycaeides","idas","Plebejus idas"
+"77","Maculinea arion","Maculinea","arion","Phengaris arion"
+"95","Phyciodes campestris","Phyciodes","campestris","Phyciodes pratensis"
+"96","Phyciodes tharos","Phyciodes","tharos","Phyciodes cocyta"
+"99","Plebejus saepiolus","Plebejus","saepiolus","Icaricia saepiolus"
+"104","Scolitantides orion","Scolitantides","orion",NA
+"108","Thymelicus lineola","Thymelicus","lineola","Thymelicus lineolus"

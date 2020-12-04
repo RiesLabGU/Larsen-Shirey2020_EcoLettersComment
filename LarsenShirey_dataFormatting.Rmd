@@ -1,7 +1,7 @@
 ---
 title: "Fric et al. Data formatting"
 author: "Vaughn Shirey & Elise Larsen"
-date: "Current version 2-Dec-2020; initiated 9-Mar-2020"
+date: "Current version 3-Dec-2020; initiated Feb-2020"
 output: html_document
 ---
 ```{r setup, include=FALSE}
@@ -38,55 +38,25 @@ all.header.rows<-grep("decimalLongitude", all.data)
 #check headers for consistency
 uniqueheaders<-unique(all.data[all.header.rows])
 
-# 2 versions! -> Get row numbers for "header 1"
-header.rows1<-grep(uniqueheaders[1], all.data)
-#Get row numbers for "header 2" 
-header.rows2<-setdiff(all.header.rows, header.rows1)
-
-#Create row identifiers: 
-#0 is a header row, 1 is format 1 data, 2 is format 2 data
-j<-rep(0,length(all.data))
-for (i in all.header.rows) {
-  #set index to the next header if it's not the last header; otherwise set to end of datafile + 1
-  if(i<max(all.header.rows)) {
-    next_index<-min(all.header.rows[all.header.rows>i])
-  }else { next_index<-length(all.data)+1 }
-
-  #for data between header rows, set row index
-  j[(i+1):(next_index-1)]<-ifelse(i%in%header.rows1,1,2)
-}
-
-#need to add a row index to the header text for new data files
-newheader1<-paste('"row.index\",' ,uniqueheaders[1], sep="")
-newheader2<-paste('"row.index\",' ,uniqueheaders[2], sep="")
-
-#write data file
-formatteddatafile1<-file("data/fric_data_header_1.txt")
-writeLines(c(newheader1,all.data[which(j==1)]), formatteddatafile1)
-close(formatteddatafile1)
-
-formatteddatafile2<-file("data/fric_data_header_2.txt")
-writeLines(c(newheader2,all.data[which(j==2)]), formatteddatafile2)
-close(formatteddatafile2)
-rm(list=ls())
-
+# 2 versions! 
+#In the data curation file, we write the data for each header to a separate text file. See that file for the detailed code.
 #read back in the formatted data
 data1<-read_csv("data/fric_data_header_1.txt")
 data2<-read_csv("data/fric_data_header_2.txt")
 paste( nrow(data1), "records in format 1;", nrow(data2), "records in format 2")
 
-alldata<-rbind(data1,data2)
+alldata<-bind_rows(data1,data2)
 rm(data1,data2)
 
 ##Fric et al includes different species names in results tables than found in data table. In the data curation folder, we match the data names to the results names and create the name_changes.csv file. Here we change names to match results tables:
-name_changes<-read_csv("data/name_changes.csv")
-table(alldata$name[which(alldata$name %in% name_changes$data.name)])
+names1<-read_csv("data/name_changes.csv")
+# this file can now be used for correcting names in the main file
 
-for(namei in 1:nrow(name_changes)) {
-  alldata$name[alldata$name==name_changes$data.name[namei]]<-name_changes$result.name[namei]
+for(namei in 1:nrow(names1)) {
+  alldata$name[alldata$name==names1$data.name[namei]]<-names1$result.name[namei]
 }
 
-rm(name_changes)
+rm(names1)
 
 ##Fric et al identifies datasets by region (N. America, Europe), but the data file does not include this information. We label data by region using longitude:
 ## visualize data density by longitude

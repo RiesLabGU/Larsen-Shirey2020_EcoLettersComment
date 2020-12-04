@@ -1,7 +1,7 @@
 ---
 title: "Import Fric et al. results from supplemental tables for comparisons"
 author: "Elise Larsen & Vaughn Shirey"
-date: "12/2/2020"
+date: "12/3/2020"
 output: html_document
 ---
 

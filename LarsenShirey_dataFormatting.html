@@ -364,7 +364,7 @@ summary {
 
 <h1 class="title toc-ignore">Fric et al. Data formatting</h1>
 <h4 class="author">Vaughn Shirey &amp; Elise Larsen</h4>
-<h4 class="date">Current version 2-Dec-2020; initiated 9-Mar-2020</h4>
+<h4 class="date">Current version 3-Dec-2020; initiated Feb-2020</h4>
 
 </div>
 
@@ -395,38 +395,8 @@ all.header.rows&lt;-grep(&quot;decimalLongitude&quot;, all.data)
 #check headers for consistency
 uniqueheaders&lt;-unique(all.data[all.header.rows])
 
-# 2 versions! -&gt; Get row numbers for &quot;header 1&quot;
-header.rows1&lt;-grep(uniqueheaders[1], all.data)
-#Get row numbers for &quot;header 2&quot; 
-header.rows2&lt;-setdiff(all.header.rows, header.rows1)
-
-#Create row identifiers: 
-#0 is a header row, 1 is format 1 data, 2 is format 2 data
-j&lt;-rep(0,length(all.data))
-for (i in all.header.rows) {
-  #set index to the next header if it&#39;s not the last header; otherwise set to end of datafile + 1
-  if(i&lt;max(all.header.rows)) {
-    next_index&lt;-min(all.header.rows[all.header.rows&gt;i])
-  }else { next_index&lt;-length(all.data)+1 }
-
-  #for data between header rows, set row index
-  j[(i+1):(next_index-1)]&lt;-ifelse(i%in%header.rows1,1,2)
-}
-
-#need to add a row index to the header text for new data files
-newheader1&lt;-paste(&#39;&quot;row.index\&quot;,&#39; ,uniqueheaders[1], sep=&quot;&quot;)
-newheader2&lt;-paste(&#39;&quot;row.index\&quot;,&#39; ,uniqueheaders[2], sep=&quot;&quot;)
-
-#write data file
-formatteddatafile1&lt;-file(&quot;data/fric_data_header_1.txt&quot;)
-writeLines(c(newheader1,all.data[which(j==1)]), formatteddatafile1)
-close(formatteddatafile1)
-
-formatteddatafile2&lt;-file(&quot;data/fric_data_header_2.txt&quot;)
-writeLines(c(newheader2,all.data[which(j==2)]), formatteddatafile2)
-close(formatteddatafile2)
-rm(list=ls())
-
+# 2 versions! 
+#In the data curation file, we write the data for each header to a separate text file. See that file for the detailed code.
 #read back in the formatted data
 data1&lt;-read_csv(&quot;data/fric_data_header_1.txt&quot;)</code></pre>
 <pre><code>## Parsed with column specification:
@@ -460,33 +430,27 @@ data1&lt;-read_csv(&quot;data/fric_data_header_1.txt&quot;)</code></pre>
 ## )</code></pre>
 <pre class="r"><code>paste( nrow(data1), &quot;records in format 1;&quot;, nrow(data2), &quot;records in format 2&quot;)</code></pre>
 <pre><code>## [1] &quot;49243 records in format 1; 233201 records in format 2&quot;</code></pre>
-<pre class="r"><code>alldata&lt;-rbind(data1,data2)
+<pre class="r"><code>alldata&lt;-bind_rows(data1,data2)
 rm(data1,data2)
 
 ##Fric et al includes different species names in results tables than found in data table. In the data curation folder, we match the data names to the results names and create the name_changes.csv file. Here we change names to match results tables:
-name_changes&lt;-read_csv(&quot;data/name_changes.csv&quot;)</code></pre>
+names1&lt;-read_csv(&quot;data/name_changes.csv&quot;)</code></pre>
 <pre><code>## Warning: Missing column names filled in: &#39;X1&#39; [1]</code></pre>
 <pre><code>## Parsed with column specification:
 ## cols(
 ##   X1 = col_double(),
-##   result.name = col_character(),
-##   data.name = col_character()
+##   data.name = col_character(),
+##   genus = col_character(),
+##   spep = col_character(),
+##   result.name = col_character()
 ## )</code></pre>
-<pre class="r"><code>table(alldata$name[which(alldata$name %in% name_changes$data.name)])</code></pre>
-<pre><code>## 
-##    Agriades optilete    Callophrys polios    Fabriciana adippe 
-##                   86                   99                 5924 
-## Incisalia augustinus       Lethe eurydice       Lycaeides idas 
-##                    4                   72                   19 
-##      Maculinea arion Phyciodes campestris     Phyciodes tharos 
-##                  755                   42                  136 
-##   Plebejus saepiolus   Thymelicus lineola 
-##                  170                11179</code></pre>
-<pre class="r"><code>for(namei in 1:nrow(name_changes)) {
-  alldata$name[alldata$name==name_changes$data.name[namei]]&lt;-name_changes$result.name[namei]
+<pre class="r"><code># this file can now be used for correcting names in the main file
+
+for(namei in 1:nrow(names1)) {
+  alldata$name[alldata$name==names1$data.name[namei]]&lt;-names1$result.name[namei]
 }
 
-rm(name_changes)
+rm(names1)
 
 ##Fric et al identifies datasets by region (N. America, Europe), but the data file does not include this information. We label data by region using longitude:
 ## visualize data density by longitude
@@ -500,27 +464,27 @@ fricdata&lt;-filter(alldata, day!=1, name!=&quot;Euphydryas aurinia&quot;)
 
 summary(fricdata)</code></pre>
 <pre><code>##    row.index         name           decimalLongitude   decimalLatitude 
-##  Min.   :    1   Length:275457      Min.   :-162.559   Min.   : 5.787  
-##  1st Qu.: 2340   Class :character   1st Qu.:  -2.676   1st Qu.:52.823  
-##  Median : 7074   Mode  :character   Median :   9.564   Median :55.775  
-##  Mean   :15039                      Mean   :   6.716   Mean   :56.354  
-##  3rd Qu.:20814                      3rd Qu.:  23.763   3rd Qu.:60.677  
+##  Min.   :    1   Length:257972      Min.   :-162.559   Min.   : 5.787  
+##  1st Qu.: 2341   Class :character   1st Qu.:  -2.676   1st Qu.:52.711  
+##  Median : 7274   Mode  :character   Median :   9.551   Median :55.638  
+##  Mean   :15624                      Mean   :   6.529   Mean   :56.296  
+##  3rd Qu.:22563                      3rd Qu.:  23.672   3rd Qu.:60.649  
 ##  Max.   :85273                      Max.   :  59.333   Max.   :71.216  
 ##                                                                        
-##       year          month        country               day       
-##  Min.   :1616   Min.   : 1.0   Length:275457      Min.   : 2.00  
-##  1st Qu.:1992   1st Qu.: 6.0   Class :character   1st Qu.: 9.00  
-##  Median :2002   Median : 7.0   Mode  :character   Median :16.00  
-##  Mean   :1996   Mean   : 6.5                      Mean   :16.19  
-##  3rd Qu.:2009   3rd Qu.: 7.0                      3rd Qu.:24.00  
-##  Max.   :2015   Max.   :12.0                      Max.   :31.00  
-##  NA&#39;s   :57                                                      
+##       year          month          country               day       
+##  Min.   :1616   Min.   : 1.000   Length:257972      Min.   : 2.00  
+##  1st Qu.:1992   1st Qu.: 6.000   Class :character   1st Qu.: 9.00  
+##  Median :2002   Median : 7.000   Mode  :character   Median :16.00  
+##  Mean   :1996   Mean   : 6.519                      Mean   :16.19  
+##  3rd Qu.:2009   3rd Qu.: 7.000                      3rd Qu.:24.00  
+##  Max.   :2015   Max.   :12.000                      Max.   :31.00  
+##  NA&#39;s   :53                                                        
 ##     SuccDay          rndLat           alt              region         
-##  Min.   :  2.0   Min.   : 6.00   Min.   :-2666.74   Length:275457     
-##  1st Qu.:164.0   1st Qu.:53.00   1st Qu.:   23.25   Class :character  
-##  Median :186.0   Median :56.00   Median :   64.24   Mode  :character  
-##  Mean   :181.2   Mean   :56.29   Mean   :  113.64                     
-##  3rd Qu.:201.0   3rd Qu.:61.00   3rd Qu.:  110.77                     
+##  Min.   :  2.0   Min.   : 6.00   Min.   :-2666.74   Length:257972     
+##  1st Qu.:165.0   1st Qu.:53.00   1st Qu.:   23.25   Class :character  
+##  Median :187.0   Median :56.00   Median :   64.24   Mode  :character  
+##  Mean   :181.8   Mean   :56.23   Mean   :  114.26                     
+##  3rd Qu.:202.0   3rd Qu.:61.00   3rd Qu.:  109.48                     
 ##  Max.   :361.0   Max.   :71.00   Max.   : 4305.17                     
 ## </code></pre>
 <pre class="r"><code>#Save formatted and filtered occurrence data used by Fric et al. 

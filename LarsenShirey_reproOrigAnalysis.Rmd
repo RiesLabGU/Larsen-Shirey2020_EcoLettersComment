@@ -1,7 +1,7 @@
 ---
 title: "Reproduce Fric et al. (2020) analysis"
 author: "E. Larsen & V. Shirey"
-date: "Updated 2-Dec-2020; started Feb-2020"
+date: "Updated 3-Dec-2020; started Feb-2020"
 output: html_document
 ---
 
@@ -104,12 +104,12 @@ summary(lm.result.diff)
 ```{r single regression summaries}
 
 #Single regression comparisons
-srplot1<-ggplot(data=lm.result.diff, aes(x=onset.srR.fric, y=onset.srR.me, color=as.factor(onset.srR.me))) + geom_jitter(height=0.3) + labs(title="Onset ~ Lat response", color="Y-resp")+ theme(legend.position = "none")
-srplot2<-ggplot(data=lm.result.diff, aes(x=onset.src.fric, y=onset.src.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="Onset ~ Lat coef")
-srplot3<-ggplot(data=lm.result.diff, aes(x=onset.srp.fric, y=onset.srp.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="Onset ~ Lat pval")
-srplot4<-ggplot(data=lm.result.diff, aes(x=term.srR.fric, y=term.srR.me, color=as.factor(term.srR.me))) + geom_jitter(height=0.3) + labs(title="Term ~ Lat response", color="Y-resp") + theme(legend.position = "none")
-srplot5<-ggplot(data=lm.result.diff, aes(x=term.src.fric, y=term.src.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="Term ~ Lat coef")
-srplot6<-ggplot(data=lm.result.diff, aes(x=term.srp.fric, y=term.srp.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title= "Term ~ Lat pval")
+srplot1<-ggplot(data=lm.result.diff, aes(x=onset.srR.fric, y=onset.srR.me, color=as.factor(onset.srR.me), shape=as.factor(onset.srR.fric))) + geom_jitter(height=0.3) + labs(title="Onset ~ Lat response", color="Y-resp")+ theme(legend.position = "none")
+srplot2<-ggplot(data=lm.result.diff, aes(x=onset.src.fric, y=onset.src.me, color=as.factor(onset.srR.me), shape=as.factor(onset.srR.fric))) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="Onset ~ Lat coef") + theme(legend.position = "none")
+srplot3<-ggplot(data=lm.result.diff, aes(x=onset.srp.fric, y=onset.srp.me, color=as.factor(onset.srR.me), shape=as.factor(onset.srR.fric))) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="Onset ~ Lat pval") + theme(legend.position = "none")
+srplot4<-ggplot(data=lm.result.diff, aes(x=term.srR.fric, y=term.srR.me, color=as.factor(term.srR.me), shape=as.factor(term.srR.fric))) + geom_jitter(height=0.3) + labs(title="Term ~ Lat response", color="Y-resp") + theme(legend.position = "none")
+srplot5<-ggplot(data=lm.result.diff, aes(x=term.src.fric, y=term.src.me, color=as.factor(term.srR.me), shape=as.factor(term.srR.fric))) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="Term ~ Lat coef") + theme(legend.position = "none")
+srplot6<-ggplot(data=lm.result.diff, aes(x=term.srp.fric, y=term.srp.me, color=as.factor(term.srR.me), shape=as.factor(term.srR.fric))) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title= "Term ~ Lat pval") + theme(legend.position = "none")
 
 grid.arrange(grobs=list(srplot1,srplot2,srplot3,srplot4,srplot5,srplot6), nrow=2, top="Single Regression Comparison")
 
@@ -136,12 +136,12 @@ lm.result.diff[which(lm.result.diff$term.srR.me!=lm.result.diff$term.srR.fric),]
 <br>compare residual regression results
 ```{r residual regression summaries}
 #Residual regerssion comparisons
-rrplot1<-ggplot(data=lm.result.diff, aes(x=onset.rrR.fric, y=onset.rrR.me , color=as.factor(onset.rrR.me))) + geom_jitter(height=0.3) + labs(title="O.resid ~ Lat response", color="Y-Resp") + theme(legend.position = "none")
-rrplot2<-ggplot(data=lm.result.diff, aes(x=onset.rrc.fric, y=onset.rrc.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="O.resid ~ Lat coef")
-rrplot3<-ggplot(data=lm.result.diff, aes(x=onset.rrp.fric, y=onset.rrp.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="O.resid ~ Lat pval")
-rrplot4<-ggplot(data=lm.result.diff, aes(x=term.rrR.fric, y=term.rrR.me, color=as.factor(term.rrR.me))) + geom_jitter(height=0.3) + labs(title="T.resid ~ Lat response", color="Y-resp") + theme(legend.position = "none")
-rrplot5<-ggplot(data=lm.result.diff, aes(x=term.rrc.fric, y=term.rrc.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="T.resid ~ Lat coef")
-rrplot6<-ggplot(data=lm.result.diff, aes(x=term.rrp.fric, y=term.rrp.me)) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title= "T.resid ~ Lat pval")
+rrplot1<-ggplot(data=lm.result.diff, aes(x=onset.rrR.fric, y=onset.rrR.me , color=as.factor(onset.rrR.me), shape=as.factor(onset.rrR.fric))) + geom_jitter(height=0.3) + labs(title="O.resid ~ Lat response", color="Y-Resp") + theme(legend.position = "none")
+rrplot2<-ggplot(data=lm.result.diff, aes(x=onset.rrc.fric, y=onset.rrc.me, color=as.factor(onset.rrR.me), shape=as.factor(onset.rrR.fric))) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="O.resid ~ Lat coef") + theme(legend.position = "none")
+rrplot3<-ggplot(data=lm.result.diff, aes(x=onset.rrp.fric, y=onset.rrp.me, color=as.factor(onset.rrR.me), shape=as.factor(onset.rrR.fric))) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="O.resid ~ Lat pval") + theme(legend.position = "none")
+rrplot4<-ggplot(data=lm.result.diff, aes(x=term.rrR.fric, y=term.rrR.me, color=as.factor(term.rrR.me), shape=as.factor(term.rrR.fric))) + geom_jitter(height=0.3) + labs(title="T.resid ~ Lat response", color="Y-resp") + theme(legend.position = "none")
+rrplot5<-ggplot(data=lm.result.diff, aes(x=term.rrc.fric, y=term.rrc.me, color=as.factor(term.rrR.me), shape=as.factor(term.rrR.fric))) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title="T.resid ~ Lat coef") + theme(legend.position = "none")
+rrplot6<-ggplot(data=lm.result.diff, aes(x=term.rrp.fric, y=term.rrp.me, color=as.factor(term.rrR.me), shape=as.factor(term.rrR.fric))) + geom_point() + geom_abline(slope=1, intercept=0) + labs(title= "T.resid ~ Lat pval") + theme(legend.position = "none")
 
 grid.arrange(grobs=list(rrplot1,rrplot2,rrplot3,rrplot4,rrplot5,rrplot6), nrow=2, top="Residual Regression Comparison")
 failed<-NULL

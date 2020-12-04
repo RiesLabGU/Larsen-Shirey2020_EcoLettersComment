@@ -234,36 +234,35 @@ We hope to add a live link to View Supplemental Figure 1 pdf.
 
 ### ADD TITLE & CAPTION TEXT to SF1
 text1<-paste("Larsen and Shirey 2020 Supplemental Figure 1")
-#text2<-paste("These panels display the data and regression results for onset and termination across models. Each row of 3 panels represents a",
-#            "species in the re-analysis. In the left column, all raw occurrence data are shown as plus symbols' while onset and termination  ",
-#            "are shown as diamonds; red points indicate individual observations used as both onset and termination. Fric et al.’s single     ",
-#            "regression results of DOY ~ latitude for onset and termination are overlaid on the data. In the middle column, the residuals    ",
-#            "used in the Fric et al. (2020) regression of residuals are shown for onset (upward triangle) and termination (downward triangle)",
-#            "respectively, with red indicating records of observations used as both onset and termination. Because each dataset is residuals,",
-#            "the 'phenology shift' data are centered around 0 and the termination axis is shifted for easier interpretation. The slopes      ",
-#            "display the regression of residuals results from Fric et al. (2020). The right column shows the calculated onset  (upward       ",
-#            "triangle) and termination (downward triangle) phenometrics calculated using the phest package in R. (Multiple observations for  ",
-#            "a latitudinal band represent different years), with the results from the multiple regression reanalysis. For all panels, the    ",
-#            "line format demonstrates positive (green, dashed), non-significant (black, dotted), or negative (blue, dashed) correlations with",
-#            "latitude in the corresponding models. While the Fric et al. analyses were generally reproducible, significance coding matches   ",
-#            "that reported in Fric et al. ST2, rather than our reproduction. We were unable to reproduce p values < 0.05 for the following   ",
-#            "single regression analyses: E. maturna onset and L. virgaureae termination.",sep=" \n ")
+text2<-paste("These panels display the data and regression results for onset and termination across models. Each row of 3 panels represents a",
+            "species in the re-analysis. In the left column, all raw occurrence data are shown as plus symbols' while onset and termination  ",
+            "are shown as diamonds; red points indicate individual observations used as both onset and termination. Fric et al.’s single     ",
+            "regression results of DOY ~ latitude for onset and termination are overlaid on the data. In the middle column, the residuals    ",
+            "used in the Fric et al. (2020) regression of residuals are shown for onset (upward triangle) and termination (downward triangle)",
+            "respectively, with red indicating records of observations used as both onset and termination. Because each dataset is residuals,",
+            "the 'phenology shift' data are centered around 0 and the termination axis is shifted for easier interpretation. The slopes      ",
+            "display the regression of residuals results from Fric et al. (2020). The right column shows the calculated onset  (upward       ",
+            "triangle) and termination (downward triangle) phenometrics calculated using the phest package in R. (Multiple observations for  ",
+            "a latitudinal band represent different years), with the results from the multiple regression reanalysis. For all panels, the    ",
+            "line format demonstrates positive (green, dashed), non-significant (black, dotted), or negative (blue, dashed) correlations with",
+            "latitude in the corresponding models. While the Fric et al. analyses were generally reproducible, significance coding matches   ",
+            "that reported in Fric et al. ST2, rather than our reproduction. We were unable to reproduce p values < 0.05 for the following   ",
+            "single regression analyses: E. maturna onset and L. virgaureae termination.",sep=" \n ")
 
-
-#spaces<-paste(" ")
-#tg <- text_grob(text1, just="centre",size=18)
-#th <- text_grob(text2, just="left",size=10)
-#ts <- text_grob(spaces, size=40)
-#lay <- rbind(c(1,1,1),c(2,NA,NA),c(3,4,5))
+spaces<-paste(" ")
+tg <- text_grob(text1, just="centre",size=18)
+th <- text_grob(text2, just="left",size=10)
+ts <- text_grob(spaces, size=40)
+lay <- rbind(c(1,1,1),c(2,NA,NA),c(3,4,5))
 
 
 ###  SUPP FIG 1  
-#p0<-grid.arrange(tg,th,ts,nrow = 3,layout_matrix = lay, heights=c(1,2,3))
+p0<-grid.arrange(tg,th,ts,nrow = 3,layout_matrix = lay, heights=c(1,2,3))
 
-#l<-list(p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11)
+l<-list(p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11)
 
-#sf1_filename<-"outputs/LarsenShirey_SuppFig1.pdf"
-#ggsave(sf1_filename, marrangeGrob(grobs = l, nrow=1, ncol=1), width=11, #height=8.5)
+sf1_filename<-"outputs/LarsenShirey_SuppFig1.pdf"
+ggsave(sf1_filename, marrangeGrob(grobs = l, nrow=1, ncol=1), width=11, height=8.5)
 ```
 <br>
 End of file. 

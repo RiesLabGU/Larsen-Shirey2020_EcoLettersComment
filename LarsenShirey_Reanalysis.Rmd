@@ -1,7 +1,7 @@
 ---
 title: "Fric et al. Re-analysis Code"
 author: "Vaughn Shirey & Elise Larsen"
-date: "Current version 3-Dec-2020; initiated 9-Mar-2020"
+date: "Current version 3-Dec-2020; initiated Feb-2020"
 output: html_document
 ---
 ```{r setup, include=FALSE}
@@ -274,7 +274,7 @@ grid.arrange(grobs=plotcompar[c(1:6)], nrow=3)
 rm(plotcompar)
 
 #If you want to just load the previously estimated phenometrics, set this to FALSE.
-calc.new.metrics<-FALSE
+calc.new.metrics<-TRUE
 #"SuccDay" = 30*(month-1)+day. We'd prefer to use calendar day
 reanalysis.data<-reanalysis.data %>%mutate(doy=yday(as.Date(paste(year,month,day, sep="-"),"%Y-%m-%d")))
 
@@ -297,7 +297,7 @@ if(calc.new.metrics) {
       
         if(nrow(temp) > 9){ # if there are at least 10 occurrences, then...
           estimates <- c(namei, regi, yr, lat, nrow(temp), 
-                       suppressWarnings(weib.limit(temp$doy, upper=FALSE, alpha=0.05)),  suppressWarnings(weib.limit(temp$doy, upper=TRUE, alpha=0.05))) # calculate estimates for the group: onset, offset
+                       suppressWarnings(weib.limit(temp$doy, upper=FALSE, alpha=0.05)),  suppressWarnings(weib.limit(temp$doy, upper=TRUE, alpha=0.05))) # calculate estimates for the group: onset, offset 
           pheno.estimates[[index]] <- estimates # shuttle those into a list
           index <- index+1
         } #end if enough occurrences
@@ -354,7 +354,8 @@ onsetpheno<-list()
 termpheno<-list()
 onset1<-NULL
 term1<-NULL
-axes<-NULL
+axeso<-NULL
+axest<-NULL
 
 for(rowi in 1:nrow(datasets)) {
   pheno.rowi<-pheno.data %>%
@@ -369,17 +370,18 @@ for(rowi in 1:nrow(datasets)) {
     #onset
   temponset<-matrix(unlist(onset.lm[c(2:3),]), ncol=4, byrow=F)
   onset1<-rbind(onset1, temponset)
-  axes<-c(axes,row.names(onset.lm)[c(2:3)])
+  axeso<-c(axeso,row.names(onset.lm)[c(2:3)])
 #termination
   tempterm<-matrix(unlist(term.lm[c(2:3),]), ncol=4, byrow=F)
   term1<-rbind(term1, tempterm)
+  axest<-c(axest,row.names(term.lm)[c(2:3)])
   rm(pheno.rowi,onset.lm,term.lm,temponset,tempterm)
   }
 
 #Create results dataframes: onset
 onset1<-as.data.frame(onset1)
 colnames(onset1)<-c("param.est","param.se","param.t","param.p")
-onset1$param<-axes
+onset1$param<-axeso
 onset1$metric<-"onset"
 onset1$name<-rep(datasets$name, each=2)
 onset1$region<-rep(datasets$region, each=2)
@@ -388,7 +390,7 @@ onset1$n<-rep(datasets$n, each=2)
 #Create results dataframes: termination
 term1<-as.data.frame(term1)
 colnames(term1)<-c("param.est","param.se","param.t","param.p")
-term1$param<-axes
+term1$param<-axest
 term1$metric<-"termination"
 term1$name<-rep(datasets$name, each=2)
 term1$region<-rep(datasets$region, each=2)

@@ -1,7 +1,7 @@
 ---
 title: "Fric et al. critiques: data curation"
 author: "Elise Larsen & Vaughn Shirey"
-date: "Updated 2-Dec-2020; Initially assembled 23-Nov-2020"
+date: "Updated 3-Dec-2020; Begun Feb-2020"
 output: html_document
 ---
 
@@ -19,6 +19,7 @@ library(readxl)
 library(ggplot2)
 library(ggExtra)
 library(gridExtra)
+library(lubridate)
 # install.packages("viridis")
 library(viridis)
 
@@ -27,8 +28,55 @@ library(viridis)
 ### Data Input
 
 ```{r ocurrence data import}
-#Import formatted occurrence data (alldata; RData file created by LarsenShirey_dataFormatting.Rmd)
-load("data/occurrences.RData")
+#raw data
+all.data <- readLines("fric_supplements/data.csv")
+
+#identify header rows
+all.header.rows<-grep("decimalLongitude", all.data)
+
+#check headers for consistency
+uniqueheaders<-unique(all.data[all.header.rows])
+
+# 2 versions! -> Get row numbers for "header 1"
+header.rows1<-grep(uniqueheaders[1], all.data)
+#Get row numbers for "header 2" 
+header.rows2<-setdiff(all.header.rows, header.rows1)
+
+#Create row identifiers: 
+#0 is a header row, 1 is format 1 data, 2 is format 2 data
+j<-rep(0,length(all.data))
+for (i in all.header.rows) {
+  #set index to the next header if it's not the last header; otherwise set to end of datafile + 1
+  if(i<max(all.header.rows)) {
+    next_index<-min(all.header.rows[all.header.rows>i])
+  }else { next_index<-length(all.data)+1 }
+
+  #for data between header rows, set row index
+  j[(i+1):(next_index-1)]<-ifelse(i%in%header.rows1,1,2)
+}
+
+#need to add a row index to the header text for new data files
+newheader1<-paste('"row.index\",' ,uniqueheaders[1], sep="")
+newheader2<-paste('"row.index\",' ,uniqueheaders[2], sep="")
+
+#write data file
+formatteddatafile1<-file("data/fric_data_header_1.txt")
+writeLines(c(newheader1,all.data[which(j==1)]), formatteddatafile1)
+close(formatteddatafile1)
+
+formatteddatafile2<-file("data/fric_data_header_2.txt")
+writeLines(c(newheader2,all.data[which(j==2)]), formatteddatafile2)
+close(formatteddatafile2)
+rm(list=ls())
+
+#read back in the formatted data
+data1<-read_csv("data/fric_data_header_1.txt")
+data2<-read_csv("data/fric_data_header_2.txt")
+paste( nrow(data1), "records in format 1;", nrow(data2), "records in format 2")
+
+alldata<-bind_rows(data1,data2)
+rm(data1,data2)
+
 
 ```
 <h4> New code 11/25/2020: day of year reconciliation</h4>
@@ -36,7 +84,7 @@ load("data/occurrences.RData")
 
 ```{r SuccDay review}
 #DOES SUCCDAY MATCH DOY?
-library(lubridate)
+
 alldata<-na.omit(alldata)
 checkdays<-alldata %>%
   mutate(doy=yday(as.Date(paste(year,month,day, sep="-"), "%Y-%m-%d")), 
@@ -66,43 +114,76 @@ alldata<-alldata %>%
 #We expect 100 species names, based on the manuscript.
 length(unique(alldata$name))
 #What are the names in the dataset?
-data.names<-sort(unique(alldata$name))
+datanames<-sort(unique(alldata$name))
+data.gs<-strsplit(datanames," ")
+data.names <-as.data.frame(cbind(datanames,matrix(unlist(strsplit(datanames," ")),ncol=2,byrow=T)))
+names(data.names)<-c("data.name","genus","spep")
+
 #Which of these names shows up in the results?
-result.names<-na.omit(read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~latitude", range="A3:A113"))
-resultnames<-(strsplit(result.names$Species, " "))
-result.names<-NULL
+result.names<-unique(na.omit(read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~latitude", range="A3:A113"))$Species)
+resultnames<-(strsplit(result.names, " "))
+result.names<-tibble(name=character(),genus=character(),spep=character())
 for(i in 1:length(resultnames)) {
-  result.names<-c(result.names,paste(resultnames[[i]][1],resultnames[[i]][2],sep=" "))
+  genus<-paste(resultnames[[i]][1])
+  spep<-paste(resultnames[[i]][2])
+  name<-paste(genus,spep,sep=" ")
+  temp.names<-tibble(name=as.character(name),genus=as.character(genus),spep=as.character(spep))
+  result.names<-bind_rows(result.names,temp.names)
 }
-which(data.names%in%result.names)
-names_1<-data.names[which(!data.names%in%result.names)]
-names_2<-result.names[which(!result.names%in%data.names)]
+#which names match
+which(data.names$data.name%in%result.names$name)
 
-# We can link the following results names to similar data names
-nmatch<-c(3,14,13,12,9,16,1,7)
+#not matched
+names1<-data.names[which(!data.names$data.name%in%result.names$name),]
+names2<-result.names[which(!result.names$name%in%data.names$data.name),]
+names1$result.name<-NA
 
-#Of the remaining 8 names, Incisalia augustinus should be combined with Callophrys augustinus, Lycaeides idas should be combined with Plebejus idas, Maculinea arion should be combined with Phengaris arion. It is unclear if any others should be combined. 
-nmatch<-c(nmatch,8,10:11)
-name_changes<-as.data.frame(cbind(result.name=c(names_2,sort(unique(result.names))[c(26,90,86)]),data.name=c(names_1[nmatch])))
-print(name_changes)
+#First let's try fuzzy matching
+for (i in 1:nrow(names1)) {
+    if(length(agrep(names1$data.name[i], names2$name, ignore.case = TRUE, value = TRUE, max.distance = 0.1))>0) {
+      names1$result.name[i]<-agrep(names1$data.name[i], names2$name, ignore.case = TRUE, value = TRUE, max.distance = 0.2)
+    }
+}
+#names1 #looks good
 
-write.csv(name_changes, file="data/name_changes.csv")
+#now let's match on specific epithets
+which(names2$spep%in%names1$spep[is.na(names1$result.name)])
+names1$result.name[which(names1$spep%in%names2$spep)]<-names2$name[match(names1$spep[which(names1$spep%in%names2$spep)],names2$spep)]
+names1 #looks good
+
+print("The species names in the results that are not present in the data are:")
+names2$name[!names2$name%in%names1$result.name]
+#GBIF considers Phyciodes cocyta a synonym of Phyciodes tharos (https://www.gbif.org/species/1918971)
+#GBIF considers Phyciodes pratensis a synonym of Phyciodes campestris (https://www.gbif.org/fr/species/1918960)
+names1$result.name[names1$data.name=="Phyciodes tharos"]<-"Phyciodes cocyta"
+names1$result.name[names1$data.name=="Phyciodes campestris"]<-"Phyciodes pratensis"
+
+#Now we can match data specific epithets to other results specific epithets
+shared.spep<-result.names$spep[which(result.names$spep%in%names1$spep[is.na(names1$result.name)])]
+
+names1$result.name[which(names1$spep%in%shared.spep)]<-result.names$name[which(result.names$spep%in%shared.spep)]
+
+names1
+
+#It is unclear if any other species names in the data contribute to the results.
+#Euphydryas aurinia is removed by Fric et al.
+names1$result.name[names1$data.name=="Euphydryas aurinia"]<-""
+#This leaves four species names, which we will not address.
+
+write.csv(names1, file="data/name_changes.csv")
 # this file can now be used for correcting names in the main file
 
-for(namei in 1:nrow(name_changes)) {
-  alldata$name[alldata$name==name_changes$data.name[namei]]<-name_changes$result.name[namei]
+for(namei in 1:nrow(names1)) {
+  alldata$name[alldata$name==names1$data.name[namei]]<-names1$result.name[namei]
 }
-write.csv(alldata, file="data/all_data_formatted.csv")
 
-fricdata<-alldata %>% filter(alldata$name %in% result.names)
+fricdata<-alldata %>% filter(alldata$name %in% result.names$name)
 rm(name_changes, resultnames, result.names, data.names, namei, names_1, names_2, nmatch)
 
 #Fric et al removed all 1st of month observations. 
 fricdata<-filter(fricdata, day!=1)
 
 summary(fricdata)
-#Save formatted and filtered ocurrence data used by Fric et al. 
-save(fricdata,file="data/occurrences_FricAnalysis.RData")
 
 
 ```
