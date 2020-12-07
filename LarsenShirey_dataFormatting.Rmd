@@ -1,7 +1,7 @@
 ---
 title: "Fric et al. Data formatting"
 author: "Vaughn Shirey & Elise Larsen"
-date: "Current version 3-Dec-2020; initiated Feb-2020"
+date: "Current version 7-Dec-2020; initiated Feb-2020"
 output: html_document
 ---
 ```{r setup, include=FALSE}
@@ -11,23 +11,22 @@ knitr::opts_chunk$set(echo = TRUE)
 rm(list=ls())
 ```
 <h2>*</h2>
-
+<h3> Data Import and Formatting</h3>
+<p>This code reads the occurrence data file provided by Fric et al. (2020) and formats it to be ready for analysis. It uses the data.csv and ele13419-suo-0003-tables2.xlsx files from the fric_supplements folder, which have been acquired from Fric et al. (2020) supplements. </p>
+<p>This code outputs the following files to the data folder: 
+fric_data_header_1.txt, fic_data_header_2.txt, name_changes.csv, occurrences.RData</p>
 ```{r load packages, message=F}
-
 # load libraries
 library(tidyverse)
 library(ggplot2)
 library(readxl)
 library(lubridate)
-
 ```
 <h2>*</h2>
-<h3> Data Import and Formatting</h3>
-data.csv file was downloaded from <a href="https://doi.org/10.6084/m9.figshare.9946934">https://doi.org/10.6084/m9.figshare.9946934</a>
-(https://figshare.com/articles/Phenology_responses_of_temperate_butterflies_-_Supplementary_data/9946934)
-
-<p>This cvs file contains the occurrence data used in Fric et al. (2020), which they downloaded from gbif. The file includes separate data tables for each dataset, which have been concatenated into one file. These data tables have the same fields but are not formatted as a single data table; individual datasets were all written into one data file, including headers and row indices in each dataset. This first set of code reformats the data & writes formatted data files. </p>
-
+###Data Input
+<p>The data.csv file was downloaded from <a href="https://doi.org/10.6084/m9.figshare.9946934">https://doi.org/10.6084/m9.figshare.9946934</a>
+(https://figshare.com/articles/Phenology_responses_of_temperate_butterflies_-_Supplementary_data/9946934) </p>
+<p>This cvs datafile contains the occurrence data used in Fric et al. (2020), which they downloaded from gbif. The file includes separate data tables for each dataset, which have been concatenated into one file. These data tables have the same fields but are not formatted as a single data table; individual datasets were all written into one data file, including headers and row indices in each dataset. This first set of code reformats the data & writes formatted data files. </p>
 
 ```{r format raw occurrence data table}
 all.data <- readLines("fric_supplements/data.csv")
@@ -39,7 +38,39 @@ all.header.rows<-grep("decimalLongitude", all.data)
 uniqueheaders<-unique(all.data[all.header.rows])
 
 # 2 versions! 
-#In the data curation file, we write the data for each header to a separate text file. See that file for the detailed code.
+
+# 2 versions! -> Get row numbers for "header 1"
+header.rows1<-grep(uniqueheaders[1], all.data)
+#Get row numbers for "header 2" 
+header.rows2<-setdiff(all.header.rows, header.rows1)
+
+#Create row identifiers: 
+#0 is a header row, 1 is format 1 data, 2 is format 2 data
+j<-rep(0,length(all.data))
+for (i in all.header.rows) {
+  #set index to the next header if it's not the last header; otherwise set to end of datafile + 1
+  if(i<max(all.header.rows)) {
+    next_index<-min(all.header.rows[all.header.rows>i])
+  }else { next_index<-length(all.data)+1 }
+
+  #for data between header rows, set row index
+  j[(i+1):(next_index-1)]<-ifelse(i%in%header.rows1,1,2)
+}
+
+#need to add a row index to the header text for new data files
+newheader1<-paste('"row.index\",' ,uniqueheaders[1], sep="")
+newheader2<-paste('"row.index\",' ,uniqueheaders[2], sep="")
+
+#write data files for each header 
+formatteddatafile1<-file("data/fric_data_header_1.txt")
+writeLines(c(newheader1,all.data[which(j==1)]), formatteddatafile1)
+close(formatteddatafile1)
+
+formatteddatafile2<-file("data/fric_data_header_2.txt")
+writeLines(c(newheader2,all.data[which(j==2)]), formatteddatafile2)
+close(formatteddatafile2)
+rm(list=ls())
+
 #read back in the formatted data
 data1<-read_csv("data/fric_data_header_1.txt")
 data2<-read_csv("data/fric_data_header_2.txt")
@@ -47,30 +78,104 @@ paste( nrow(data1), "records in format 1;", nrow(data2), "records in format 2")
 
 alldata<-bind_rows(data1,data2)
 rm(data1,data2)
+```
+### Data exploration 1: species names and regions
+Now we assign regions to occurrence data and reconcile species names that don't match between the data file and results files provided in the original supplement.
+```{r  species names & regions}
+summary(alldata)
 
-##Fric et al includes different species names in results tables than found in data table. In the data curation folder, we match the data names to the results names and create the name_changes.csv file. Here we change names to match results tables:
-names1<-read_csv("data/name_changes.csv")
+##Fric et al identifies datasets by region (N. America, Europe), but the data file does not include this information. We label data by region using longitude:
+## visualize data density by longitude
+hist(alldata$decimalLongitude, main="Data density by Longitude") 
+#We label everything East of -40 as Europe, the rest as N. America 
+alldata<-alldata %>% 
+  mutate(region=ifelse(decimalLongitude>=(-40),"Europe","N. America"))
+
+#We expect 100 species names, based on the manuscript.
+length(unique(alldata$name))
+#What are the names in the dataset?
+datanames<-sort(unique(alldata$name))
+data.gs<-strsplit(datanames," ")
+data.names <-as.data.frame(cbind(datanames,matrix(unlist(strsplit(datanames," ")),ncol=2,byrow=T)))
+names(data.names)<-c("data.name","genus","spep")
+
+#Which of these names shows up in the results?
+result.names<-unique(na.omit(read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~latitude", range="A3:A113"))$Species)
+resultnames<-(strsplit(result.names, " "))
+result.names<-tibble(name=character(),genus=character(),spep=character())
+for(i in 1:length(resultnames)) {
+  genus<-paste(resultnames[[i]][1])
+  spep<-paste(resultnames[[i]][2])
+  name<-paste(genus,spep,sep=" ")
+  temp.names<-tibble(name=as.character(name),genus=as.character(genus),spep=as.character(spep))
+  result.names<-bind_rows(result.names,temp.names)
+}
+#which names match
+which(data.names$data.name%in%result.names$name)
+
+#not matched
+names1<-data.names[which(!data.names$data.name%in%result.names$name),]
+names2<-result.names[which(!result.names$name%in%data.names$data.name),]
+names1$result.name<-NA
+
+#First let's try fuzzy matching
+for (i in 1:nrow(names1)) {
+    if(length(agrep(names1$data.name[i], names2$name, ignore.case = TRUE, value = TRUE, max.distance = 0.1))>0) {
+      names1$result.name[i]<-agrep(names1$data.name[i], names2$name, ignore.case = TRUE, value = TRUE, max.distance = 0.2)
+    }
+}
+#names1 #looks good
+
+#now let's match on specific epithets
+which(names2$spep%in%names1$spep[is.na(names1$result.name)])
+names1$result.name[which(names1$spep%in%names2$spep)]<-names2$name[match(names1$spep[which(names1$spep%in%names2$spep)],names2$spep)]
+names1 #looks good
+
+print("The species names in the results that are not present in the data are:")
+names2$name[!names2$name%in%names1$result.name]
+#GBIF considers Phyciodes cocyta a synonym of Phyciodes tharos (https://www.gbif.org/species/1918971)
+#GBIF considers Phyciodes pratensis a synonym of Phyciodes campestris (https://www.gbif.org/fr/species/1918960)
+names1$result.name[names1$data.name=="Phyciodes tharos"]<-"Phyciodes cocyta"
+names1$result.name[names1$data.name=="Phyciodes campestris"]<-"Phyciodes pratensis"
+
+#Now we can match data specific epithets to other results specific epithets
+shared.spep<-result.names$spep[which(result.names$spep%in%names1$spep[is.na(names1$result.name)])]
+
+names1$result.name[which(names1$spep%in%shared.spep)]<-result.names$name[which(result.names$spep%in%shared.spep)]
+
+names1
+
+#It is unclear if any other species names in the data contribute to the results.
+#Euphydryas aurinia is removed by Fric et al.
+names1$result.name[names1$data.name=="Euphydryas aurinia"]<-""
+#This leaves four species names, which we will not address.
+
+write.csv(names1, file="data/name_changes.csv")
 # this file can now be used for correcting names in the main file
 
 for(namei in 1:nrow(names1)) {
   alldata$name[alldata$name==names1$data.name[namei]]<-names1$result.name[namei]
 }
 
-rm(names1)
+```
+<h4> New code 11/25/2020: day of year reconciliation</h4>
+<p>Until today, we had assumed that the "SuccDay" values were a consistent index for day of year. However, we had not documented our initial spot-checking of altitudes. While identifying GBIF records for documented spot-checking, we found some inconsistencies in the SuccDay value. Here we identify how "SuccDay" was calculated.</p>
 
-##Fric et al identifies datasets by region (N. America, Europe), but the data file does not include this information. We label data by region using longitude:
-## visualize data density by longitude
-#hist(alldata$decimalLongitude, main="Data density by Longitude") 
-#We label everything East of -40 as Europe, the rest as N. America 
-alldata<-alldata %>% 
-  mutate(region=ifelse(decimalLongitude>=(-40),"Europe","N. America"))
+```{r SuccDay review}
+#DOES SUCCDAY MATCH DOY?
+checkdays<-na.omit(alldata) %>%
+  mutate(doy=yday(as.Date(paste(year,month,day, sep="-"), "%Y-%m-%d")), 
+         daydiff=SuccDay-doy, fricday=(month-1)*30+day) %>%
+  select(name,day,month,year,SuccDay,doy,daydiff,fricday)
+#summary(checkdays)
+table(checkdays$fricday-checkdays$SuccDay)
+ggplot(data=checkdays, aes(y=daydiff, x=doy, color=as.factor(month))) + geom_jitter()
 
-#Fric et al removed all 1st of month observations and removed one species due to late season nests
-fricdata<-filter(alldata, day!=1, name!="Euphydryas aurinia")
+#we'd prefer to use calendar day
+alldata<-alldata %>%mutate(doy=yday(as.Date(paste(year,month,day, sep="-"),"%Y-%m-%d")))
+rm(checkdays)
 
-summary(fricdata)
-#Save formatted and filtered occurrence data used by Fric et al. 
-save(alldata,file="data/occurrences.RData")
-save(fricdata,file="data/occurrences_FricAnalysis.RData")
+##Save formatted occurrence data file
+save(alldata, file="data/occurrences.RData")
 ```
 <br>End of File.
