@@ -372,16 +372,18 @@ summary {
 <h2>
 *
 </h2>
-<p><br>Here we import Fric et al. results from supplemental tables</p>
+<p>
+Here we import Fric et al. results from supplemental tables.<br> We start with ~latitude and ~latitude|altitude+year model results
+</p>
 <pre class="r"><code>##Needed packages:
 library(readxl)
 library(tidyverse)</code></pre>
-<pre><code>## -- Attaching packages -------------------------------------------- tidyverse 1.3.0 --</code></pre>
+<pre><code>## -- Attaching packages --------------------------------------------------- tidyverse 1.3.0 --</code></pre>
 <pre><code>## v ggplot2 3.3.2     v purrr   0.3.4
 ## v tibble  3.0.3     v dplyr   1.0.1
 ## v tidyr   1.1.1     v stringr 1.4.0
 ## v readr   1.3.1     v forcats 0.5.0</code></pre>
-<pre><code>## -- Conflicts ----------------------------------------------- tidyverse_conflicts() --
+<pre><code>## -- Conflicts ------------------------------------------------------ tidyverse_conflicts() --
 ## x dplyr::filter() masks stats::filter()
 ## x dplyr::lag()    masks stats::lag()</code></pre>
 <pre class="r"><code>##Import Fric results: 
@@ -435,13 +437,68 @@ fric.results&lt;-rbind(fric.results.lat, fric.results.corr)
 field.names&lt;-c(names(read_excel(&quot;fric_supplements/ele13419-sup-0003-tables2.xlsx&quot;, sheet=&quot;~latitude&quot;, range=&quot;B4:I4&quot;)))
 field.names&lt;-c(&quot;species&quot;,paste(&quot;peak&quot;,field.names,sep=&quot;.&quot;),paste(&quot;onset&quot;,field.names,sep=&quot;.&quot;),paste(&quot;term&quot;,field.names,sep=&quot;.&quot;),&quot;model&quot;)
 
-names(fric.results)&lt;-field.names
+names(fric.results)&lt;-field.names</code></pre>
+<p>
+Add ~year and ~year|latitude responses for supplemental table 2
+</p>
+<pre class="r"><code>#Check order of phenometric results in tables
+#Single regression
+yr.metrics1&lt;-names(read_excel(&quot;fric_supplements/ele13419-sup-0003-tables2.xlsx&quot;, sheet=&quot;~year&quot;, range=&quot;A2:Y2&quot;))</code></pre>
+<pre><code>## New names:
+## * `` -&gt; ...3
+## * `` -&gt; ...4
+## * `` -&gt; ...5
+## * `` -&gt; ...6
+## * `` -&gt; ...7
+## * ...</code></pre>
+<pre class="r"><code>yr.metrics1[grep(&quot;e&quot;,yr.metrics1)]</code></pre>
+<pre><code>## [1] &quot;Species&quot;     &quot;Peak&quot;        &quot;Onset&quot;       &quot;Termination&quot;</code></pre>
+<pre class="r"><code>#Corrected regression (Regression of residuals)
+yr.metrics2&lt;-names(read_excel(&quot;fric_supplements/ele13419-sup-0003-tables2.xlsx&quot;, sheet=&quot;~year|latitude&quot;, range=&quot;A2:Y2&quot;))</code></pre>
+<pre><code>## New names:
+## * `` -&gt; ...3
+## * `` -&gt; ...4
+## * `` -&gt; ...5
+## * `` -&gt; ...6
+## * `` -&gt; ...7
+## * ...</code></pre>
+<pre class="r"><code>yr.metrics2[grep(&quot;e&quot;,yr.metrics2)]</code></pre>
+<pre><code>## [1] &quot;Species&quot;     &quot;Peak&quot;        &quot;Onset&quot;       &quot;Termination&quot;</code></pre>
+<pre class="r"><code># Table is 1 species column and 3 sets of results columns (peak, onset, termination). There are 8 results parameters reported per model. 
+n.metrics&lt;-8
+fric.yr&lt;-na.omit(read_excel(&quot;fric_supplements/ele13419-sup-0003-tables2.xlsx&quot;, sheet=&quot;~year&quot;, range=&quot;A3:Y108&quot;))</code></pre>
+<pre><code>## New names:
+## * `` -&gt; ...1
+## * ResDFMean -&gt; ResDFMean...2
+## * ResDevMean -&gt; ResDevMean...3
+## * DFMean -&gt; DFMean...4
+## * DevMean -&gt; DevMean...5
+## * ...</code></pre>
+<pre class="r"><code>#nrow(fric.results.lat)
+fric.yr.lat&lt;-read_excel(&quot;fric_supplements/ele13419-sup-0003-tables2.xlsx&quot;, sheet=&quot;~year|latitude&quot;, range=&quot;A3:Y108&quot;)</code></pre>
+<pre><code>## New names:
+## * `` -&gt; ...1
+## * ResDFMean -&gt; ResDFMean...2
+## * ResDevMean -&gt; ResDevMean...3
+## * DFMean -&gt; DFMean...4
+## * DevMean -&gt; DevMean...5
+## * ...</code></pre>
+<pre class="r"><code>fric.yr$model&lt;-&quot;year&quot;
+fric.yr.lat$model&lt;-&quot;yearcorr&quot;
 
-#Fields we want to keep for comparison
+field.names&lt;-c(names(read_excel(&quot;fric_supplements/ele13419-sup-0003-tables2.xlsx&quot;, sheet=&quot;~year&quot;, range=&quot;B3:I3&quot;)))
+field.names&lt;-c(&quot;species&quot;,paste(&quot;peak&quot;,field.names,sep=&quot;.&quot;),paste(&quot;onset&quot;,field.names,sep=&quot;.&quot;),paste(&quot;term&quot;,field.names,sep=&quot;.&quot;),&quot;model&quot;)
+
+names(fric.yr.lat)&lt;-names(fric.yr)&lt;-field.names
+
+#Combine all results into one table
+fric.results&lt;-rbind(fric.results,fric.yr,fric.yr.lat)
+rm(fric.results.lat, fric.results.corr, fric.yr, fric.yr.lat)
+rm(field.names, fric.metrics1, fric.metrics2, n.metrics, yr.metrics1, yr.metrics2)
+#Keep Fields we want for comparison
 fric.results&lt;-fric.results %&gt;%
-  select(species,peak.ResDFMean,onset.p_mean,onset.coef,onset.response,term.p_mean,term.coef,term.response, model)
-
-#standardize names
+  select(species,peak.ResDFMean,onset.ResDFMean,onset.p_mean,onset.coef,onset.response,term.p_mean,term.ResDFMean,term.coef,term.response, model)</code></pre>
+<pre class="r"><code>#standardize names
 fric.results.species&lt;-strsplit(fric.results$species,&quot; &quot;)
 result.names&lt;-NULL
 for(i in 1:length(fric.results.species)) {
@@ -452,26 +509,31 @@ fric.results$name&lt;-result.names
 table(order(fric.results$name)-order(fric.results$species))</code></pre>
 <pre><code>## 
 ##   0 
-## 210</code></pre>
+## 420</code></pre>
 <pre class="r"><code>#The sort order is the same. Looks good.</code></pre>
 <h2>
 *
 </h2>
 <p><br> Because Fric et al. results are not tagged by region, we add a field for region. We match results to region based on relative sample sizes.</p>
-<pre class="r"><code>#ID Species names that occur in both regions
-fric.dups&lt;-fric.results %&gt;% group_by(name) %&gt;% tally() %&gt;% filter(n==4)
-rm(fric.results.lat,fric.results.corr,result.names,fric.results.species)
+<pre class="r"><code>#Get species-region &amp; sample sizes from fric data file
+#load occurrence data (see data curation files for how this file is created)
 
-#Get species-region &amp; sample sizes from fric data file
-#load occurrence data
+#loads fricdata 
 load(&#39;data/occurrences_FricAnalysis.RData&#39;)
 #summarize species-region-samplesize
-fricsummary&lt;-fricdata %&gt;% group_by(name,region) %&gt;% tally()
+datasummary&lt;-fricdata %&gt;%  group_by(name,region) %&gt;% tally()
 
-fric.results$region&lt;-fricsummary$region[match(fric.results$name,fricsummary$name)]
+fric.results$region&lt;-datasummary$region[match(fric.results$name,datasummary$name)]
 
 #But now we need to correct the ones that are in both regions
-dup.sp1&lt;-fricsummary[duplicated(fricsummary$name) | duplicated(fricsummary$name, fromLast=T),]
+
+#ID Species names that occur in both regions
+fric.dups&lt;-fric.results %&gt;% group_by(name) %&gt;% tally() %&gt;% filter(n==8)
+
+#Get data records with duplicates
+dup.sp1&lt;-datasummary[duplicated(datasummary$name) | duplicated(datasummary$name, fromLast=T),]
+
+#For each species, check which region has more occurrence data
 biggersample&lt;-NULL
 for(sp in sort(unique(dup.sp1$name))) {
   biggersample&lt;-c(biggersample,ifelse(dup.sp1$n[dup.sp1$name==sp &amp; dup.sp1$region==&quot;Europe&quot;]-dup.sp1$n[dup.sp1$name==sp &amp; dup.sp1$region==&quot;N. America&quot;]&gt;0,&quot;Europe&quot;,&quot;N. America&quot;))
@@ -490,26 +552,33 @@ for(sp in sort(unique(dup.sp1$name))) {
 fric.results$set&lt;-paste(fric.results$name,fric.results$region,sep=&quot;-&quot;)
 
 summary(fric.results)</code></pre>
-<pre><code>##    species          peak.ResDFMean   onset.p_mean       onset.coef     
-##  Length:210         Min.   :   13   Min.   :0.00000   Min.   :-2.6232  
-##  Class :character   1st Qu.:   80   1st Qu.:0.02347   1st Qu.:-0.2907  
-##  Mode  :character   Median :  190   Median :0.28206   Median : 0.2514  
-##                     Mean   : 2458   Mean   :0.35055   Mean   : 0.4766  
-##                     3rd Qu.: 1065   3rd Qu.:0.65001   3rd Qu.: 1.1236  
-##                     Max.   :51817   Max.   :0.99961   Max.   : 4.3313  
-##  onset.response     term.p_mean          term.coef       term.response     
-##  Min.   :-1.0000   Min.   :0.0000006   Min.   :-2.9032   Min.   :-1.00000  
-##  1st Qu.: 0.0000   1st Qu.:0.0552444   1st Qu.:-0.4966   1st Qu.: 0.00000  
-##  Median : 0.0000   Median :0.2377114   Median : 0.1617   Median : 0.00000  
-##  Mean   : 0.1571   Mean   :0.3407683   Mean   : 0.1468   Mean   : 0.09524  
-##  3rd Qu.: 0.0000   3rd Qu.:0.5906122   3rd Qu.: 0.8318   3rd Qu.: 0.00000  
-##  Max.   : 1.0000   Max.   :0.9960557   Max.   : 4.1062   Max.   : 1.00000  
-##     model               name              region              set           
-##  Length:210         Length:210         Length:210         Length:210        
-##  Class :character   Class :character   Class :character   Class :character  
-##  Mode  :character   Mode  :character   Mode  :character   Mode  :character  
-##                                                                             
-##                                                                             
+<pre><code>##    species          peak.ResDFMean  onset.ResDFMean  onset.p_mean   
+##  Length:420         Min.   :   13   Min.   : 3.00   Min.   :0.0000  
+##  Class :character   1st Qu.:   80   1st Qu.:13.00   1st Qu.:0.1050  
+##  Mode  :character   Median :  190   Median :18.00   Median :0.3901  
+##                     Mean   : 2458   Mean   :18.58   Mean   :0.4013  
+##                     3rd Qu.: 1065   3rd Qu.:25.00   3rd Qu.:0.6788  
+##                     Max.   :51817   Max.   :37.00   Max.   :0.9996  
+##    onset.coef       onset.response      term.p_mean        term.ResDFMean 
+##  Min.   :-2.62324   Min.   :-1.00000   Min.   :0.0000006   Min.   : 3.00  
+##  1st Qu.:-0.17607   1st Qu.: 0.00000   1st Qu.:0.1300094   1st Qu.:12.00  
+##  Median : 0.06153   Median : 0.00000   Median :0.3829437   Median :18.00  
+##  Mean   : 0.23994   Mean   : 0.09524   Mean   :0.4050860   Mean   :18.29  
+##  3rd Qu.: 0.38807   3rd Qu.: 0.00000   3rd Qu.:0.6600517   3rd Qu.:24.00  
+##  Max.   : 4.33128   Max.   : 1.00000   Max.   :0.9972891   Max.   :34.00  
+##    term.coef        term.response         model               name          
+##  Min.   :-2.90317   Min.   :-1.00000   Length:420         Length:420        
+##  1st Qu.:-0.18540   1st Qu.: 0.00000   Class :character   Class :character  
+##  Median : 0.02208   Median : 0.00000   Mode  :character   Mode  :character  
+##  Mean   : 0.08746   Mean   : 0.04048                                        
+##  3rd Qu.: 0.39264   3rd Qu.: 0.00000                                        
+##  Max.   : 4.10620   Max.   : 1.00000                                        
+##     region              set           
+##  Length:420         Length:420        
+##  Class :character   Class :character  
+##  Mode  :character   Mode  :character  
+##                                       
+##                                       
 ## </code></pre>
 <pre class="r"><code>print(&quot;Onset response: single regression&quot;)</code></pre>
 <pre><code>## [1] &quot;Onset response: single regression&quot;</code></pre>
@@ -537,7 +606,8 @@ summary(fric.results)</code></pre>
 ##  4 89 12</code></pre>
 <pre class="r"><code>#Save to data file
 save(fric.results,file=&quot;data/fric_results.RData&quot;)</code></pre>
-<p><br>The # responses in each group are correct. <br>End File.</p>
+<p><br>The # responses in each group are correct.</p>
+<p><br>End File.</p>
 
 
 

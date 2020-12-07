@@ -7,11 +7,12 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-
+rm(list=ls())
 ```
 <h2>*</h2>
-  <br>Here we import Fric et al. results from supplemental tables
-```{r import from file}
+  <p>Here we import Fric et al. results from supplemental tables.<br>
+  We start with ~latitude and ~latitude|altitude+year model results </p>
+```{r import latitude results from file}
 
 ##Needed packages:
 library(readxl)
@@ -42,10 +43,46 @@ field.names<-c("species",paste("peak",field.names,sep="."),paste("onset",field.n
 
 names(fric.results)<-field.names
 
-#Fields we want to keep for comparison
-fric.results<-fric.results %>%
-  select(species,peak.ResDFMean,onset.p_mean,onset.coef,onset.response,term.p_mean,term.coef,term.response, model)
+```
 
+<p> Add ~year and ~year|latitude responses for supplemental table 2</p>
+ 
+```{r import year results}
+
+#Check order of phenometric results in tables
+#Single regression
+yr.metrics1<-names(read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~year", range="A2:Y2"))
+yr.metrics1[grep("e",yr.metrics1)]
+#Corrected regression (Regression of residuals)
+yr.metrics2<-names(read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~year|latitude", range="A2:Y2"))
+yr.metrics2[grep("e",yr.metrics2)]
+
+# Table is 1 species column and 3 sets of results columns (peak, onset, termination). There are 8 results parameters reported per model. 
+n.metrics<-8
+fric.yr<-na.omit(read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~year", range="A3:Y108"))
+#nrow(fric.results.lat)
+fric.yr.lat<-read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~year|latitude", range="A3:Y108")
+
+fric.yr$model<-"year"
+fric.yr.lat$model<-"yearcorr"
+
+field.names<-c(names(read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~year", range="B3:I3")))
+field.names<-c("species",paste("peak",field.names,sep="."),paste("onset",field.names,sep="."),paste("term",field.names,sep="."),"model")
+
+names(fric.yr.lat)<-names(fric.yr)<-field.names
+
+#Combine all results into one table
+fric.results<-rbind(fric.results,fric.yr,fric.yr.lat)
+rm(fric.results.lat, fric.results.corr, fric.yr, fric.yr.lat)
+rm(field.names, fric.metrics1, fric.metrics2, n.metrics, yr.metrics1, yr.metrics2)
+#Keep Fields we want for comparison
+fric.results<-fric.results %>%
+  select(species,peak.ResDFMean,onset.ResDFMean,onset.p_mean,onset.coef,onset.response,term.p_mean,term.ResDFMean,term.coef,term.response, model)
+
+```
+
+
+```{r standardize names}
 #standardize names
 fric.results.species<-strsplit(fric.results$species," ")
 result.names<-NULL
@@ -62,20 +99,25 @@ table(order(fric.results$name)-order(fric.results$species))
 We match results to region based on relative sample sizes.
 
 ```{r identify results by region}
-#ID Species names that occur in both regions
-fric.dups<-fric.results %>% group_by(name) %>% tally() %>% filter(n==4)
-rm(fric.results.lat,fric.results.corr,result.names,fric.results.species)
-
 #Get species-region & sample sizes from fric data file
-#load occurrence data
+#load occurrence data (see data curation files for how this file is created)
+
+#loads fricdata 
 load('data/occurrences_FricAnalysis.RData')
 #summarize species-region-samplesize
-fricsummary<-fricdata %>% group_by(name,region) %>% tally()
+datasummary<-fricdata %>%  group_by(name,region) %>% tally()
 
-fric.results$region<-fricsummary$region[match(fric.results$name,fricsummary$name)]
+fric.results$region<-datasummary$region[match(fric.results$name,datasummary$name)]
 
 #But now we need to correct the ones that are in both regions
-dup.sp1<-fricsummary[duplicated(fricsummary$name) | duplicated(fricsummary$name, fromLast=T),]
+
+#ID Species names that occur in both regions
+fric.dups<-fric.results %>% group_by(name) %>% tally() %>% filter(n==8)
+
+#Get data records with duplicates
+dup.sp1<-datasummary[duplicated(datasummary$name) | duplicated(datasummary$name, fromLast=T),]
+
+#For each species, check which region has more occurrence data
 biggersample<-NULL
 for(sp in sort(unique(dup.sp1$name))) {
   biggersample<-c(biggersample,ifelse(dup.sp1$n[dup.sp1$name==sp & dup.sp1$region=="Europe"]-dup.sp1$n[dup.sp1$name==sp & dup.sp1$region=="N. America"]>0,"Europe","N. America"))
@@ -100,8 +142,10 @@ print("Onset response: residual regression")
 table(filter(fric.results,model=="corr")$onset.response)
 print("Termination response: residual regression")
 table(filter(fric.results,model=="corr")$term.response)
+
 #Save to data file
 save(fric.results,file="data/fric_results.RData")
 ```
 <br>The # responses in each group are correct.
+
 <br>End File.
