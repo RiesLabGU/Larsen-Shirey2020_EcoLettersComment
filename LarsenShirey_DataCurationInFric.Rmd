@@ -174,7 +174,7 @@ ggplot(data=lat.summary2, aes(x=nlats, y=prop.singletons, color=region)) + geom_
 As expected, most data are quite recent. 
  By selecting the min and max day of year per latitudinal band as onset & termination, the authors vastly decrease their sample size and remove most of the variation along the year and altitude axes
 <p>We arbitrarily selected one species with a low sample size and one species with a large sample size, to visualize.
-```{r explore year axis, echo=F, message=F, warning=F}
+```{r explore year axis, echo=T, message=F, warning=F}
 
 yrdata<-fricdata%>% group_by(year, rndLat) %>% tally()
 # Heatmap 
