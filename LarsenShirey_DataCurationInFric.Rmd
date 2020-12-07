@@ -1,16 +1,15 @@
 ---
 title: "Fric et al. critiques: data curation"
 author: "Elise Larsen & Vaughn Shirey"
-date: "Updated 3-Dec-2020; Begun Feb-2020"
+date: "Updated 7-Dec-2020; Begun Feb-2020"
 output: html_document
 ---
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ### Here we explore the occurrence data from Fric et al. (2020) 
-This gives a detailed account of some data curation issues we observed in the Fric et al. data and curation.
+<p>This gives a detailed account of some data curation issues we observed in the Fric et al. data and curation. This file inputs the data/occurrence.RData and fric_supplements/ele13419-suo-0003-tables2.xlsx files and outputs the data/occurrences_FricAnalysis.RData
 ```{r set up workspace, message=F}
 rm(list=ls())
 # load libraries
@@ -19,106 +18,17 @@ library(readxl)
 library(ggplot2)
 library(ggExtra)
 library(gridExtra)
-library(lubridate)
 # install.packages("viridis")
 library(viridis)
-
 ```
 
 ### Data Input
-
+<p>We import the formatted occurrence data and explore the independent variables used in the Fric et al. analysis.</p>
 ```{r ocurrence data import}
 #raw data
-all.data <- readLines("fric_supplements/data.csv")
+load("data/occurrences.RData")
 
-#identify header rows
-all.header.rows<-grep("decimalLongitude", all.data)
-
-#check headers for consistency
-uniqueheaders<-unique(all.data[all.header.rows])
-
-# 2 versions! -> Get row numbers for "header 1"
-header.rows1<-grep(uniqueheaders[1], all.data)
-#Get row numbers for "header 2" 
-header.rows2<-setdiff(all.header.rows, header.rows1)
-
-#Create row identifiers: 
-#0 is a header row, 1 is format 1 data, 2 is format 2 data
-j<-rep(0,length(all.data))
-for (i in all.header.rows) {
-  #set index to the next header if it's not the last header; otherwise set to end of datafile + 1
-  if(i<max(all.header.rows)) {
-    next_index<-min(all.header.rows[all.header.rows>i])
-  }else { next_index<-length(all.data)+1 }
-
-  #for data between header rows, set row index
-  j[(i+1):(next_index-1)]<-ifelse(i%in%header.rows1,1,2)
-}
-
-#need to add a row index to the header text for new data files
-newheader1<-paste('"row.index\",' ,uniqueheaders[1], sep="")
-newheader2<-paste('"row.index\",' ,uniqueheaders[2], sep="")
-
-#write data file
-formatteddatafile1<-file("data/fric_data_header_1.txt")
-writeLines(c(newheader1,all.data[which(j==1)]), formatteddatafile1)
-close(formatteddatafile1)
-
-formatteddatafile2<-file("data/fric_data_header_2.txt")
-writeLines(c(newheader2,all.data[which(j==2)]), formatteddatafile2)
-close(formatteddatafile2)
-rm(list=ls())
-
-#read back in the formatted data
-data1<-read_csv("data/fric_data_header_1.txt")
-data2<-read_csv("data/fric_data_header_2.txt")
-paste( nrow(data1), "records in format 1;", nrow(data2), "records in format 2")
-
-alldata<-bind_rows(data1,data2)
-rm(data1,data2)
-
-
-```
-<h4> New code 11/25/2020: day of year reconciliation</h4>
-<p>Until today, we had assumed that the "SuccDay" values were a consistent index for day of year. However, we had not documented our initial spot-checking of altitudes. While identifying GBIF records for documented sopt-checking, we found some inconsistencies in the SuccDay value. Here we identify how "SuccDay" was calculated.</p>
-
-```{r SuccDay review}
-#DOES SUCCDAY MATCH DOY?
-
-alldata<-na.omit(alldata)
-checkdays<-alldata %>%
-  mutate(doy=yday(as.Date(paste(year,month,day, sep="-"), "%Y-%m-%d")), 
-         daydiff=SuccDay-doy, fricday=(month-1)*30+day) %>%
-  select(name,day,month,year,SuccDay,doy,daydiff,fricday)
-#summary(checkdays)
-table(checkdays$fricday-checkdays$SuccDay)
-ggplot(data=checkdays, aes(y=daydiff, x=doy, color=as.factor(month))) + geom_jitter()
-
-#we'd prefer to use calendar day
-alldata<-alldata %>%mutate(doy=yday(as.Date(paste(year,month,day, sep="-"),"%Y-%m-%d")))
-
-```
-
-### Data exploration 1
-Now we assign region, reconcile names that don't match between the data file and results files provided in the original supplement, and filter the Fric dataset to remove first day of the month records to obtain the dataset used in Fric et al.
-```{r  species names & regions}
-summary(alldata)
-
-##Fric et al identifies datasets by region (N. America, Europe), but the data file does not include this information. We label data by region using longitude:
-## visualize data density by longitude
-hist(alldata$decimalLongitude, main="Data density by Longitude") 
-#We label everything East of -40 as Europe, the rest as N. America 
-alldata<-alldata %>% 
-  mutate(region=ifelse(decimalLongitude>=(-40),"Europe","N. America"))
-
-#We expect 100 species names, based on the manuscript.
-length(unique(alldata$name))
-#What are the names in the dataset?
-datanames<-sort(unique(alldata$name))
-data.gs<-strsplit(datanames," ")
-data.names <-as.data.frame(cbind(datanames,matrix(unlist(strsplit(datanames," ")),ncol=2,byrow=T)))
-names(data.names)<-c("data.name","genus","spep")
-
+#Revisit list of names from results file to limit data to that used by Fric et al.
 #Which of these names shows up in the results?
 result.names<-unique(na.omit(read_excel("fric_supplements/ele13419-sup-0003-tables2.xlsx", sheet="~latitude", range="A3:A113"))$Species)
 resultnames<-(strsplit(result.names, " "))
@@ -130,64 +40,14 @@ for(i in 1:length(resultnames)) {
   temp.names<-tibble(name=as.character(name),genus=as.character(genus),spep=as.character(spep))
   result.names<-bind_rows(result.names,temp.names)
 }
-#which names match
-which(data.names$data.name%in%result.names$name)
+rm(resultnames, genus, spep, name, temp.names)
 
-#not matched
-names1<-data.names[which(!data.names$data.name%in%result.names$name),]
-names2<-result.names[which(!result.names$name%in%data.names$data.name),]
-names1$result.name<-NA
-
-#First let's try fuzzy matching
-for (i in 1:nrow(names1)) {
-    if(length(agrep(names1$data.name[i], names2$name, ignore.case = TRUE, value = TRUE, max.distance = 0.1))>0) {
-      names1$result.name[i]<-agrep(names1$data.name[i], names2$name, ignore.case = TRUE, value = TRUE, max.distance = 0.2)
-    }
-}
-#names1 #looks good
-
-#now let's match on specific epithets
-which(names2$spep%in%names1$spep[is.na(names1$result.name)])
-names1$result.name[which(names1$spep%in%names2$spep)]<-names2$name[match(names1$spep[which(names1$spep%in%names2$spep)],names2$spep)]
-names1 #looks good
-
-print("The species names in the results that are not present in the data are:")
-names2$name[!names2$name%in%names1$result.name]
-#GBIF considers Phyciodes cocyta a synonym of Phyciodes tharos (https://www.gbif.org/species/1918971)
-#GBIF considers Phyciodes pratensis a synonym of Phyciodes campestris (https://www.gbif.org/fr/species/1918960)
-names1$result.name[names1$data.name=="Phyciodes tharos"]<-"Phyciodes cocyta"
-names1$result.name[names1$data.name=="Phyciodes campestris"]<-"Phyciodes pratensis"
-
-#Now we can match data specific epithets to other results specific epithets
-shared.spep<-result.names$spep[which(result.names$spep%in%names1$spep[is.na(names1$result.name)])]
-
-names1$result.name[which(names1$spep%in%shared.spep)]<-result.names$name[which(result.names$spep%in%shared.spep)]
-
-names1
-
-#It is unclear if any other species names in the data contribute to the results.
-#Euphydryas aurinia is removed by Fric et al.
-names1$result.name[names1$data.name=="Euphydryas aurinia"]<-""
-#This leaves four species names, which we will not address.
-
-write.csv(names1, file="data/name_changes.csv")
-# this file can now be used for correcting names in the main file
-
-for(namei in 1:nrow(names1)) {
-  alldata$name[alldata$name==names1$data.name[namei]]<-names1$result.name[namei]
-}
-
-fricdata<-alldata %>% filter(alldata$name %in% result.names$name)
-rm(name_changes, resultnames, result.names, data.names, namei, names_1, names_2, nmatch)
-
-#Fric et al removed all 1st of month observations. 
-fricdata<-filter(fricdata, day!=1)
-
+#Fric et al also removed all 1st of month observations according to their methods
+fricdata<-filter(alldata, day!=1, name %in% result.names$name)
 summary(fricdata)
-
-
+#Save formatted and filtered occurrence data used by Fric et al. 
+save(fricdata,file="data/occurrences_FricAnalysis.RData")
 ```
-
 ### Data exploration: altitude (elevation)
 <p>(We defer to the Fric et al use of "altitude" for clarity)</p>
 Early on in data exploration we were concerned with the range of altitude values in the data. 
@@ -242,7 +102,7 @@ https://www.gbif.org/occurrence/2570253925 which lists an inferred elevation of 
 </ul>
 
 ### Altitude ~ Latitude collinearity
-Fric et al. used regression of residuals for corrected analyses. Regression of residuals is not recommended, particularly if there could be collinearity among explanatory variables. We examined the collinearity between altitude and latitude, which would indicate the regression of residuals analysis would produce biased parameter estimates.
+Fric et al. used regression of residuals for corrected analyses. Regression of residuals is not recommended, particularly if there could be collinearity among explanatory variables. We examined the collinearity by modeling rndLat ~ altitude and rndLat~ year, where rndLat represents the latitudinal bands used in analysis. The observed collinearity indicates that regression of residuals analyses would produce biased parameter estimates.
 ```{r collinearity}
 #Additional issues with altitude
 #Given the use of regression of residuals, we were concerned that collinearity among independent variables could have led to biased results.
@@ -257,21 +117,36 @@ for (spi in 1:nrow(datasets)) {
 }
 templms<-as.data.frame(templms)
 names(templms)<-c("n","coef","pval","r2")
-hist(templms$coef)
+hist(templms$coef, main="Dataset coefficients for latBand~altitude")
+abline(v=0,col="red")
 summary(templms)
 
 round(nrow(filter(templms,pval<0.05))/nrow(templms),2)
 #How many datasets have significant collinearity
 print(paste(nrow(filter(templms,pval<0.05)),"datasets have significant collinearity, representing", round(nrow(filter(templms,pval<0.05))/nrow(templms)*100,1),"percent of all datasets. For datasets with significant collinearity, the mean coefficient is",round(mean(templms$coef[templms$pval<0.05]),3),"(which translates to a slope of", round(1/mean(templms$coef[templms$pval<0.05]),0),"meters per degree latitude) and mean r-squared is",round(mean(templms$r2[templms$pval<0.05]),3)," - therefore regression of residuals is likely producing bias parameters.",sep=" "))
 
-```
+#How many datasets have significant collinearity between year and latitude?
+yrlatlms<-NULL
+for (spi in 1:nrow(datasets)) {
+  tempdata<-fricdata %>% filter(name==datasets$name[spi],region==datasets$region[spi])
+  spilm<-summary(lm(rndLat~year, data=tempdata))
+  yrlatlms<-rbind(yrlatlms,c(nrow(tempdata), spilm$coefficients[2,1],  spilm$coefficients[2,4], spilm$r.squared))
+}
+yrlatlms<-as.data.frame(yrlatlms)
+names(yrlatlms)<-c("n","coef","pval","r2")
+hist(yrlatlms$coef, main="Dataset coefficients for latBand~year")
+abline(v=0,col="red")
+summary(yrlatlms)
 
+round(nrow(filter(yrlatlms,pval<0.05))/nrow(yrlatlms),2)
+#How many datasets have significant collinearity
+print(paste(nrow(filter(yrlatlms,pval<0.05)),"datasets have significant collinearity, representing", round(nrow(filter(yrlatlms,pval<0.05))/nrow(yrlatlms)*100,1),"percent of all datasets. For datasets with significant collinearity, the mean coefficient is",round(mean(yrlatlms$coef[yrlatlms$pval<0.05]),3),"and mean r-squared is",round(mean(yrlatlms$r2[yrlatlms$pval<0.05]),3),".",sep=" "))
+```
 ### Data exploration: data density
 - In Fric et al. (2020), datasets were analysed with as few as 15 ocurrence records.
 <br>
 - We examine the prevalence of singleton ocurrences, when just one ocurrence was available in a latitudinal band.
 <br>
-
 ```{r data density 1}
 lat.summary1<-fricdata %>%
   group_by(name, region, rndLat) %>%
@@ -298,7 +173,7 @@ ggplot(data=lat.summary2, aes(x=nlats, y=prop.singletons, color=region)) + geom_
 ### Data exploration: year
 As expected, most data are quite recent. 
  By selecting the min and max day of year per latitudinal band as onset & termination, the authors vastly decrease their sample size and remove most of the variation along the year and altitude axes
-<p>We arbitrarily selected two species, one with a low sample size and one with a large sample size, to visualize.
+<p>We arbitrarily selected one species with a low sample size and one species with a large sample size, to visualize.
 ```{r explore year axis, echo=F, message=F, warning=F}
 
 yrdata<-fricdata%>% group_by(year, rndLat) %>% tally()
