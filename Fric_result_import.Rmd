@@ -1,7 +1,7 @@
 ---
 title: "Import Fric et al. results from supplemental tables for comparisons"
 author: "Elise Larsen & Vaughn Shirey"
-date: "12/3/2020"
+date: "Updated 12/7/2020; initiated 12/3/2020"
 output: html_document
 ---
 
@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 <h2>*</h2>
   <br>Here we import Fric et al. results from supplemental tables
-```{r import from file, echo=FALSE}
+```{r import from file}
 
 ##Needed packages:
 library(readxl)
@@ -61,7 +61,7 @@ table(order(fric.results$name)-order(fric.results$species))
 <br> Because Fric et al. results are not tagged by region, we add a field for region.
 We match results to region based on relative sample sizes.
 
-```{r identify results by region, echo=FALSE}
+```{r identify results by region}
 #ID Species names that occur in both regions
 fric.dups<-fric.results %>% group_by(name) %>% tally() %>% filter(n==4)
 rm(fric.results.lat,fric.results.corr,result.names,fric.results.species)
@@ -76,11 +76,11 @@ fric.results$region<-fricsummary$region[match(fric.results$name,fricsummary$name
 
 #But now we need to correct the ones that are in both regions
 dup.sp1<-fricsummary[duplicated(fricsummary$name) | duplicated(fricsummary$name, fromLast=T),]
-samplediff<-NULL
+biggersample<-NULL
 for(sp in sort(unique(dup.sp1$name))) {
-  samplediff<-c(samplediff,ifelse(dup.sp1$n[dup.sp1$name==sp & dup.sp1$region=="Europe"]-dup.sp1$n[dup.sp1$name==sp & dup.sp1$region=="N. America"]>0,"Europe","N. America"))
+  biggersample<-c(biggersample,ifelse(dup.sp1$n[dup.sp1$name==sp & dup.sp1$region=="Europe"]-dup.sp1$n[dup.sp1$name==sp & dup.sp1$region=="N. America"]>0,"Europe","N. America"))
 }
-table(samplediff)
+table(biggersample)
 
 #All Europe sample sizes are bigger so we can use that to ID regions in the Fric results.
 for(sp in sort(unique(dup.sp1$name))) {
@@ -90,7 +90,7 @@ for(sp in sort(unique(dup.sp1$name))) {
 }
 
 fric.results$set<-paste(fric.results$name,fric.results$region,sep="-")
-save(fric.results,file="data/fric_results.RData")
+
 summary(fric.results)
 print("Onset response: single regression")
 table(filter(fric.results,model=="lat")$onset.response)
@@ -100,6 +100,8 @@ print("Onset response: residual regression")
 table(filter(fric.results,model=="corr")$onset.response)
 print("Termination response: residual regression")
 table(filter(fric.results,model=="corr")$term.response)
+#Save to data file
+save(fric.results,file="data/fric_results.RData")
 ```
 <br>The # responses in each group are correct.
 <br>End File.

@@ -364,7 +364,7 @@ summary {
 
 <h1 class="title toc-ignore">Import Fric et al. results from supplemental tables for comparisons</h1>
 <h4 class="author">Elise Larsen &amp; Vaughn Shirey</h4>
-<h4 class="date">12/3/2020</h4>
+<h4 class="date">Updated 12/7/2020; initiated 12/3/2020</h4>
 
 </div>
 
@@ -373,14 +373,22 @@ summary {
 *
 </h2>
 <p><br>Here we import Fric et al. results from supplemental tables</p>
-<pre><code>## -- Attaching packages ---------------------------------------------------------- tidyverse 1.3.0 --</code></pre>
+<pre class="r"><code>##Needed packages:
+library(readxl)
+library(tidyverse)</code></pre>
+<pre><code>## -- Attaching packages -------------------------------------------- tidyverse 1.3.0 --</code></pre>
 <pre><code>## v ggplot2 3.3.2     v purrr   0.3.4
 ## v tibble  3.0.3     v dplyr   1.0.1
 ## v tidyr   1.1.1     v stringr 1.4.0
 ## v readr   1.3.1     v forcats 0.5.0</code></pre>
-<pre><code>## -- Conflicts ------------------------------------------------------------- tidyverse_conflicts() --
+<pre><code>## -- Conflicts ----------------------------------------------- tidyverse_conflicts() --
 ## x dplyr::filter() masks stats::filter()
 ## x dplyr::lag()    masks stats::lag()</code></pre>
+<pre class="r"><code>##Import Fric results: 
+
+#Check order of phenometric results in tables
+#Single regression
+fric.metrics1&lt;-names(read_excel(&quot;fric_supplements/ele13419-sup-0003-tables2.xlsx&quot;, sheet=&quot;~latitude&quot;, range=&quot;A3:Y3&quot;))</code></pre>
 <pre><code>## New names:
 ## * `` -&gt; ...3
 ## * `` -&gt; ...4
@@ -388,7 +396,10 @@ summary {
 ## * `` -&gt; ...6
 ## * `` -&gt; ...7
 ## * ...</code></pre>
+<pre class="r"><code>fric.metrics1[grep(&quot;e&quot;,fric.metrics1)]</code></pre>
 <pre><code>## [1] &quot;Species&quot;     &quot;Peak&quot;        &quot;Onset&quot;       &quot;Termination&quot;</code></pre>
+<pre class="r"><code>#Corrected regression (Regression of residuals)
+fric.metrics2&lt;-names(read_excel(&quot;fric_supplements/ele13419-sup-0003-tables2.xlsx&quot;, sheet=&quot;~latitude|altitude+year&quot;, range=&quot;A2:Y2&quot;))</code></pre>
 <pre><code>## New names:
 ## * `` -&gt; ...3
 ## * `` -&gt; ...4
@@ -396,7 +407,11 @@ summary {
 ## * `` -&gt; ...6
 ## * `` -&gt; ...7
 ## * ...</code></pre>
+<pre class="r"><code>fric.metrics2[grep(&quot;e&quot;,fric.metrics2)]</code></pre>
 <pre><code>## [1] &quot;Species&quot;     &quot;Peak&quot;        &quot;Onset&quot;       &quot;Termination&quot;</code></pre>
+<pre class="r"><code># Table is 1 species column and 3 sets of results columns (peak, onset, termination). There are 8 results parameters reported per model. 
+n.metrics&lt;-8
+fric.results.lat&lt;-na.omit(read_excel(&quot;fric_supplements/ele13419-sup-0003-tables2.xlsx&quot;, sheet=&quot;~latitude&quot;, range=&quot;A4:Y113&quot;))</code></pre>
 <pre><code>## New names:
 ## * `` -&gt; ...1
 ## * ResDFMean -&gt; ResDFMean...2
@@ -404,6 +419,8 @@ summary {
 ## * DFMean -&gt; DFMean...4
 ## * DevMean -&gt; DevMean...5
 ## * ...</code></pre>
+<pre class="r"><code>#nrow(fric.results.lat)
+fric.results.corr&lt;-read_excel(&quot;fric_supplements/ele13419-sup-0003-tables2.xlsx&quot;, sheet=&quot;~latitude|altitude+year&quot;, range=&quot;A3:Y108&quot;)</code></pre>
 <pre><code>## New names:
 ## * `` -&gt; ...1
 ## * ResDFMean -&gt; ResDFMean...2
@@ -411,16 +428,68 @@ summary {
 ## * DFMean -&gt; DFMean...4
 ## * DevMean -&gt; DevMean...5
 ## * ...</code></pre>
+<pre class="r"><code>fric.results.lat$model&lt;-&quot;lat&quot;
+fric.results.corr$model&lt;-&quot;corr&quot;
+fric.results&lt;-rbind(fric.results.lat, fric.results.corr)
+
+field.names&lt;-c(names(read_excel(&quot;fric_supplements/ele13419-sup-0003-tables2.xlsx&quot;, sheet=&quot;~latitude&quot;, range=&quot;B4:I4&quot;)))
+field.names&lt;-c(&quot;species&quot;,paste(&quot;peak&quot;,field.names,sep=&quot;.&quot;),paste(&quot;onset&quot;,field.names,sep=&quot;.&quot;),paste(&quot;term&quot;,field.names,sep=&quot;.&quot;),&quot;model&quot;)
+
+names(fric.results)&lt;-field.names
+
+#Fields we want to keep for comparison
+fric.results&lt;-fric.results %&gt;%
+  select(species,peak.ResDFMean,onset.p_mean,onset.coef,onset.response,term.p_mean,term.coef,term.response, model)
+
+#standardize names
+fric.results.species&lt;-strsplit(fric.results$species,&quot; &quot;)
+result.names&lt;-NULL
+for(i in 1:length(fric.results.species)) {
+  result.names&lt;-c(result.names,paste(fric.results.species[[i]][1],fric.results.species[[i]][2],sep=&quot; &quot;))
+}
+fric.results$name&lt;-result.names
+#verify that names match
+table(order(fric.results$name)-order(fric.results$species))</code></pre>
 <pre><code>## 
 ##   0 
 ## 210</code></pre>
+<pre class="r"><code>#The sort order is the same. Looks good.</code></pre>
 <h2>
 *
 </h2>
 <p><br> Because Fric et al. results are not tagged by region, we add a field for region. We match results to region based on relative sample sizes.</p>
-<pre><code>## samplediff
+<pre class="r"><code>#ID Species names that occur in both regions
+fric.dups&lt;-fric.results %&gt;% group_by(name) %&gt;% tally() %&gt;% filter(n==4)
+rm(fric.results.lat,fric.results.corr,result.names,fric.results.species)
+
+#Get species-region &amp; sample sizes from fric data file
+#load occurrence data
+load(&#39;data/occurrences_FricAnalysis.RData&#39;)
+#summarize species-region-samplesize
+fricsummary&lt;-fricdata %&gt;% group_by(name,region) %&gt;% tally()
+
+fric.results$region&lt;-fricsummary$region[match(fric.results$name,fricsummary$name)]
+
+#But now we need to correct the ones that are in both regions
+dup.sp1&lt;-fricsummary[duplicated(fricsummary$name) | duplicated(fricsummary$name, fromLast=T),]
+biggersample&lt;-NULL
+for(sp in sort(unique(dup.sp1$name))) {
+  biggersample&lt;-c(biggersample,ifelse(dup.sp1$n[dup.sp1$name==sp &amp; dup.sp1$region==&quot;Europe&quot;]-dup.sp1$n[dup.sp1$name==sp &amp; dup.sp1$region==&quot;N. America&quot;]&gt;0,&quot;Europe&quot;,&quot;N. America&quot;))
+}
+table(biggersample)</code></pre>
+<pre><code>## biggersample
 ## Europe 
 ##      5</code></pre>
+<pre class="r"><code>#All Europe sample sizes are bigger so we can use that to ID regions in the Fric results.
+for(sp in sort(unique(dup.sp1$name))) {
+  sizes&lt;-fric.results$peak.ResDFMean[which(fric.results$name==sp)]
+  fric.results$region[fric.results$name==sp &amp; fric.results$peak.ResDFMean==max(sizes)]&lt;-&quot;Europe&quot;
+  fric.results$region[fric.results$name==sp &amp; fric.results$peak.ResDFMean==min(sizes)]&lt;-&quot;N. America&quot;
+}
+
+fric.results$set&lt;-paste(fric.results$name,fric.results$region,sep=&quot;-&quot;)
+
+summary(fric.results)</code></pre>
 <pre><code>##    species          peak.ResDFMean   onset.p_mean       onset.coef     
 ##  Length:210         Min.   :   13   Min.   :0.00000   Min.   :-2.6232  
 ##  Class :character   1st Qu.:   80   1st Qu.:0.02347   1st Qu.:-0.2907  
@@ -442,22 +511,32 @@ summary {
 ##                                                                             
 ##                                                                             
 ## </code></pre>
+<pre class="r"><code>print(&quot;Onset response: single regression&quot;)</code></pre>
 <pre><code>## [1] &quot;Onset response: single regression&quot;</code></pre>
+<pre class="r"><code>table(filter(fric.results,model==&quot;lat&quot;)$onset.response)</code></pre>
 <pre><code>## 
 ## -1  0  1 
 ## 12 67 26</code></pre>
+<pre class="r"><code>print(&quot;Termination response: single regression&quot;)</code></pre>
 <pre><code>## [1] &quot;Termination response: single regression&quot;</code></pre>
+<pre class="r"><code>table(filter(fric.results,model==&quot;lat&quot;)$term.response)</code></pre>
 <pre><code>## 
 ## -1  0  1 
 ## 11 71 23</code></pre>
+<pre class="r"><code>print(&quot;Onset response: residual regression&quot;)</code></pre>
 <pre><code>## [1] &quot;Onset response: residual regression&quot;</code></pre>
+<pre class="r"><code>table(filter(fric.results,model==&quot;corr&quot;)$onset.response)</code></pre>
 <pre><code>## 
 ## -1  0  1 
 ##  2 82 21</code></pre>
+<pre class="r"><code>print(&quot;Termination response: residual regression&quot;)</code></pre>
 <pre><code>## [1] &quot;Termination response: residual regression&quot;</code></pre>
+<pre class="r"><code>table(filter(fric.results,model==&quot;corr&quot;)$term.response)</code></pre>
 <pre><code>## 
 ## -1  0  1 
 ##  4 89 12</code></pre>
+<pre class="r"><code>#Save to data file
+save(fric.results,file=&quot;data/fric_results.RData&quot;)</code></pre>
 <p><br>The # responses in each group are correct. <br>End File.</p>
 
 
