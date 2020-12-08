@@ -1,10 +1,9 @@
 ---
 title: "Supplemental Figure 1"
 author: "Larsen & Shirey"
-date: "Updated 3-Dec-2020; separated from reanalysis 25-Nov-2020"
+date: "Updated 7-Dec-2020; separated from reanalysis 25-Nov-2020"
 output: html_document
 ---
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -20,13 +19,13 @@ library(gridExtra)
 library(ggpubr)
 load("data/occurrences_FricAnalysis.RData")
 load("data/phenometrics.RData")
-reanalysis<-read_csv("outputs/supp_table2_part.csv")
+reanalysis<-read_csv("outputs/LarsenShirey_SuppTable2.csv")
 datasets<-pheno.data %>% group_by(name, region) %>% tally()
 datasets<-datasets %>% mutate(set=paste(name,region,sep="-"))
 ```
 <h2>*</h2>
 <br>Create Supplemental Figure 1
-```{r supplemental figure 1 panels, echo=F, warning=F, message=F}
+```{r supplemental figure 1 panels, echo=T, warning=F, message=F}
 
 #################### SUPPLEMENTAL FIGURE 1 
 
@@ -165,7 +164,7 @@ sup1c<-list()
 for(rowi in 1:nrow(datasets)) {
     #Filter reanalysis data
   pheno.rowi<-pheno.data %>%
-    filter(name==datasets$name[rowi], region==datasets$region[rowi], onset>29) 
+    filter(name==datasets$name[rowi], region==datasets$region[rowi]) 
   #model  for onset
   onset.model<-lm(onset~rndLat+year, data=pheno.rowi)   
   #model for termination
@@ -177,10 +176,10 @@ for(rowi in 1:nrow(datasets)) {
   
     #set parameters based on LM results 
     onsetline<-ifelse(onset.params$Reanalysis_p<0.05,"dashed","dotted")
-    onsetcolor<-ifelse(onset.params$Reanalysis_p<0.05,ifelse(onset.params$Reanalysis_coefficient>0,posslope,negslope),flatslope)
+    onsetcolor<-ifelse(onset.params$Reanalysis_p<0.05,ifelse(onset.params$Reanalysis_coef>0,posslope,negslope),flatslope)
 
     termline<-ifelse(term.params$Reanalysis_p<0.05,"dashed","dotted")
-    termcolor<-ifelse(term.params$Reanalysis_p<0.05,ifelse(term.params$Reanalysis_coefficient>0,posslope,negslope),flatslope)
+    termcolor<-ifelse(term.params$Reanalysis_p<0.05,ifelse(term.params$Reanalysis_coef>0,posslope,negslope),flatslope)
 
     #Set top and bottom margins for odd (top of page) and even (bottom of page) rows
     t3<-ifelse((rowi %% 2) == 0,0.5,2.8)
@@ -206,7 +205,7 @@ for(rowi in 1:nrow(datasets)) {
 <h2>*</h2>
 A small break between creating the panels and assmembling Supplemental Figure 1.
 The chunk below combines the panels into Supplemental Figure 1.
-```{r combining panels for SF1, echo=F, warning=F, fig.height = 7, fig.width = 10, fig.align = "center"}
+```{r combining panels for SF1, echo=T, fig.height = 7, fig.width = 10, fig.align = "center"}
 
 #### COMBINE PANELS FOR SUPPLEMENTAL FIGURE 1
 (p1<-grid.arrange(sup1a[[1]],sup1b[[1]],sup1c[[1]],sup1a[[2]],sup1b[[2]],sup1c[[2]],nrow = 2))
@@ -228,7 +227,7 @@ The chunk below combines the panels into Supplemental Figure 1.
 <p>Below is the code used to create Supplemental Figure 1 in R, for documentation.  </p>
 We hope to add a live link to View Supplemental Figure 1 pdf.
 
-```{r complete supplemental figure 1, echo=F}
+```{r complete supplemental figure 1, echo=T}
 #library(ggpubr)
 #This code chunk adds the caption information for Supplemental Figure 1 and creates PDF output.
 
